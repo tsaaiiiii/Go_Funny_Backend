@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "tsx --watch server.ts",
     "start": "tsx server.ts",
+    "setup": "docker compose up -d && pnpm install && pnpm exec prisma migrate dev && pnpm exec prisma generate",
     "test": "echo \"No tests configured\""
   },
   "keywords": [],
@@ -19,6 +20,8 @@
   "devDependencies": {
     "@types/express": "^5.0.6",
     "@types/node": "^25.5.0",
+    "dotenv": "^17.3.1",
+    "prisma": "^7.6.0",
     "tsx": "^4.21.0",
     "typescript": "^6.0.2"
   }

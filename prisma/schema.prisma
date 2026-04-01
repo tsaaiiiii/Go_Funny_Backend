@@ -1,8 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../generated/prisma"
@@ -10,4 +5,104 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+enum TripMode {
+  expense
+  pool
+}
+
+model Trip {
+  id          String           @id @default(cuid())
+  title       String
+  location    String
+  startDate   DateTime
+  endDate     DateTime
+  mode        TripMode
+  createdAt   DateTime         @default(now())
+  memberships TripMembership[]
+  expenses    Expense[]
+  contributions Contribution[]
+  invitations  Invitation[]
+}
+
+model User {
+  id          String           @id @default(cuid())
+  email       String           @unique
+  name        String
+  createdAt   DateTime         @default(now())
+  memberships TripMembership[]
+}
+
+model TripMembership {
+  id        String   @id @default(cuid())
+  tripId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  trip      Trip     @relation(fields: [tripId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+  expenses  Expense[]
+  splits    ExpenseSplit[]
+  contributions Contribution[]
+
+  @@unique([tripId, userId])
+}
+
+enum SplitType {
+  equal_all
+  equal_selected
+  custom
+}
+
+model Expense {
+  id                String          @id @default(cuid())
+  tripId            String
+  title             String
+  amount            Int
+  date              DateTime
+  splitType         SplitType
+  payerMembershipId String?
+  note              String?
+  createdAt         DateTime        @default(now())
+
+  trip              Trip            @relation(fields: [tripId], references: [id])
+  payerMembership   TripMembership? @relation(fields: [payerMembershipId], references: [id])
+  splits            ExpenseSplit[]
+}
+
+model ExpenseSplit {
+  id           String         @id @default(cuid())
+  expenseId    String
+  membershipId String
+  amount       Int
+  createdAt    DateTime       @default(now())
+
+  expense      Expense        @relation(fields: [expenseId], references: [id])
+  membership   TripMembership @relation(fields: [membershipId], references: [id])
+
+  @@unique([expenseId, membershipId])
+}
+
+model Contribution {
+  id           String         @id @default(cuid())
+  tripId       String
+  membershipId String
+  amount       Int
+  date         DateTime
+  createdAt    DateTime       @default(now())
+
+  trip         Trip           @relation(fields: [tripId], references: [id])
+  membership   TripMembership @relation(fields: [membershipId], references: [id])
+}
+
+model Invitation {
+  id         String   @id @default(cuid())
+  tripId     String
+  token      String   @unique
+  expiresAt  DateTime
+  acceptedAt DateTime?
+  createdAt  DateTime @default(now())
+
+  trip       Trip     @relation(fields: [tripId], references: [id])
 }

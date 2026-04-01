@@ -8,7 +8,26 @@
 cp .env.example .env
 ```
 
-## 使用 Docker 啟動 PostgreSQL
+## 專案啟動
+
+### 方式一：使用整合指令 `setup`
+
+這個方式適合第一次把專案跑起來時使用，會依序執行：
+
+- 啟動 PostgreSQL
+- 安裝套件
+- 套用既有 Prisma migrations
+- 產生 Prisma Client
+
+```bash
+pnpm setup
+```
+
+### 方式二：手動逐步執行
+
+如果你想理解每一步在做什麼，可以手動執行以下指令。
+
+#### 1. 使用 Docker 啟動 PostgreSQL
 
 執行以下指令，啟動 `docker-compose.yml` 中定義的 PostgreSQL 服務：
 
@@ -16,16 +35,37 @@ cp .env.example .env
 docker compose up -d
 ```
 
+#### 2. 安裝套件
+
+```bash
+pnpm install
+```
+
+#### 3. 套用既有 migrations
+
+如果專案已經有既有 migrations，只是要把這些變更同步到你的本地資料庫，使用：
+
+```bash
+pnpm exec prisma migrate dev
+```
+
+#### 4. 產生 Prisma Client
+
+```bash
+pnpm exec prisma generate
+```
+
 ## Prisma 指令用途
 
 - `migration`：用來管理資料庫結構變更，例如建立 table、新增 column、修改欄位型別或關聯。
+- 第一次建立 migration，或你剛修改完 `schema.prisma` 並要新增一筆資料庫結構變更紀錄時，使用：
 
 ```bash
-npx prisma migrate dev --name init
+pnpm exec prisma migrate dev --name init
 ```
 
 - `seed`：用來寫入初始資料或假資料，例如測試用帳號、預設分類、基本設定資料。
 
 ```bash
-npx prisma db seed
+pnpm exec prisma db seed
 ```
