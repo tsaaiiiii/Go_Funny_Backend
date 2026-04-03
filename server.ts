@@ -1,12 +1,5 @@
 import "dotenv/config";
-import express from "express";
-
-const app = express();
-app.use(express.json());
-
-app.get("/", (_req: express.Request, res: express.Response) => {
-  res.send("Hello, Go-Funny-Backend!");
-});
+import app from "./src/app";
 
 const port = Number(process.env.PORT);
 app.listen(port, () => {

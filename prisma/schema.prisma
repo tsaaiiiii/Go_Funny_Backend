@@ -13,40 +13,46 @@ enum TripMode {
 }
 
 model Trip {
-  id          String           @id @default(cuid())
-  title       String
-  location    String
-  startDate   DateTime
-  endDate     DateTime
-  mode        TripMode
-  createdAt   DateTime         @default(now())
-  memberships TripMembership[]
-  expenses    Expense[]
+  id            String           @id @default(cuid())
+  title         String
+  location      String?
+  startDate     DateTime         @map("start_date")
+  endDate       DateTime         @map("end_date")
+  mode          TripMode
+  createdAt     DateTime         @default(now()) @map("created_at")
+  memberships   TripMembership[]
+  expenses      Expense[]
   contributions Contribution[]
-  invitations  Invitation[]
+  invitations   Invitation[]
+
+  @@map("trip")
 }
 
 model User {
   id          String           @id @default(cuid())
   email       String           @unique
   name        String
-  createdAt   DateTime         @default(now())
+  createdAt   DateTime         @default(now()) @map("created_at")
   memberships TripMembership[]
+  invitations Invitation[]
+
+  @@map("user")
 }
 
 model TripMembership {
-  id        String   @id @default(cuid())
-  tripId    String
-  userId    String
-  createdAt DateTime @default(now())
+  id            String         @id @default(cuid())
+  tripId        String         @map("trip_id")
+  userId        String         @map("user_id")
+  createdAt     DateTime       @default(now()) @map("created_at")
 
-  trip      Trip     @relation(fields: [tripId], references: [id])
-  user      User     @relation(fields: [userId], references: [id])
-  expenses  Expense[]
-  splits    ExpenseSplit[]
+  trip          Trip           @relation(fields: [tripId], references: [id])
+  user          User           @relation(fields: [userId], references: [id])
+  expenses      Expense[]
+  splits        ExpenseSplit[]
   contributions Contribution[]
 
   @@unique([tripId, userId])
+  @@map("trip_membership")
 }
 
 enum SplitType {
@@ -57,52 +63,69 @@ enum SplitType {
 
 model Expense {
   id                String          @id @default(cuid())
-  tripId            String
+  tripId            String          @map("trip_id")
   title             String
   amount            Int
   date              DateTime
-  splitType         SplitType
-  payerMembershipId String?
+  splitType         SplitType       @map("split_type")
+  payerMembershipId String?         @map("payer_membership_id")
   note              String?
-  createdAt         DateTime        @default(now())
+  createdAt         DateTime        @default(now()) @map("created_at")
 
   trip              Trip            @relation(fields: [tripId], references: [id])
   payerMembership   TripMembership? @relation(fields: [payerMembershipId], references: [id])
   splits            ExpenseSplit[]
+
+  @@map("expense")
 }
 
 model ExpenseSplit {
   id           String         @id @default(cuid())
-  expenseId    String
-  membershipId String
+  expenseId    String         @map("expense_id")
+  membershipId String         @map("membership_id")
   amount       Int
-  createdAt    DateTime       @default(now())
+  createdAt    DateTime       @default(now()) @map("created_at")
 
   expense      Expense        @relation(fields: [expenseId], references: [id])
   membership   TripMembership @relation(fields: [membershipId], references: [id])
 
   @@unique([expenseId, membershipId])
+  @@map("expense_split")
 }
 
 model Contribution {
   id           String         @id @default(cuid())
-  tripId       String
-  membershipId String
+  tripId       String         @map("trip_id")
+  membershipId String         @map("membership_id")
   amount       Int
   date         DateTime
-  createdAt    DateTime       @default(now())
+  createdAt    DateTime       @default(now()) @map("created_at")
 
   trip         Trip           @relation(fields: [tripId], references: [id])
   membership   TripMembership @relation(fields: [membershipId], references: [id])
+
+  @@map("contribution")
+}
+
+enum InvitationRole {
+  editor
 }
 
 model Invitation {
-  id         String   @id @default(cuid())
-  tripId     String
-  token      String   @unique
-  expiresAt  DateTime
-  acceptedAt DateTime?
-  createdAt  DateTime @default(now())
+  id              String          @id @default(cuid())
+  tripId          String          @map("trip_id")
+  token           String          @unique
+  role            InvitationRole  @default(editor)
+  maxUses         Int?            @map("max_uses")
+  usedCount       Int             @default(0) @map("used_count")
+  expiresAt       DateTime?       @map("expires_at")
+  acceptedAt      DateTime?       @map("accepted_at")
+  revokedAt       DateTime?       @map("revoked_at")
+  createdByUserId String?         @map("created_by_user_id")
+  createdAt       DateTime        @default(now()) @map("created_at")
 
-  trip       Trip     @relation(fields: [tripId], references: [id])
+  trip            Trip            @relation(fields: [tripId], references: [id])
+  createdByUser   User?           @relation(fields: [createdByUserId], references: [id])
+
+  @@map("invitation")
 }

@@ -64,6 +64,12 @@ pnpm exec prisma generate
 pnpm exec prisma migrate dev --name init
 ```
 
+- `studio`：開啟網頁介面，可以直接瀏覽和編輯資料庫資料。
+
+```bash
+pnpm exec prisma studio
+```
+
 - `seed`：用來寫入初始資料或假資料，例如測試用帳號、預設分類、基本設定資料。
 
 ```bash
