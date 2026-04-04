@@ -1,8 +1,8 @@
 import { Router } from "express";
-import { create } from "@/controllers/trip";
+import { create, getAll } from "@/controllers/trip";
 
 const router = Router();
 
 router.post("/", create);
-
+router.get("/", getAll);
 export default router;

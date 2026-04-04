@@ -9,3 +9,7 @@ export const createTrip = async (data: {
 }) => {
   return prisma.trip.create({ data });
 };
+
+export const getTrips = async () => {
+  return prisma.trip.findMany();
+};
