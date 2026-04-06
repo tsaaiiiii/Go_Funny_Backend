@@ -1,24 +1,10 @@
 import { Request, Response } from "express";
-import { createMember, deleteMember, getMembers } from "@/services/member";
-
-export const create = async (req: Request, res: Response) => {
-  try {
-    const { tripId } = req.params;
-    const { userId } = req.body;
-
-    if (Array.isArray(tripId)) {
-      return res.status(400).json({ message: "無效的旅程" });
-    }
-    const member = await createMember(tripId, userId);
-    res.status(201).json(member);
-  } catch (error) {
-    res.status(400).json({ message: "新增成員失敗" });
-  }
-};
+import { getMembers, deleteMember } from "@/services/member";
 
 export const getMemberList = async (req: Request, res: Response) => {
   try {
     const { tripId } = req.params;
+
     if (Array.isArray(tripId)) {
       return res.status(400).json({ message: "無效的旅程" });
     }
@@ -35,8 +21,9 @@ export const remove = async (req: Request, res: Response) => {
     const { memberId } = req.params;
 
     if (Array.isArray(memberId)) {
-      return res.status(400).json({ message: "無效的旅程" });
+      return res.status(400).json({ message: "無效的成員" });
     }
+
     await deleteMember(memberId);
     res.status(204).send();
   } catch (error) {

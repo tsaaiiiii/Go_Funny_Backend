@@ -11,11 +11,28 @@ export const createTrip = async (data: {
 };
 
 export const getTrips = async () => {
-  return prisma.trip.findMany();
+  return prisma.trip.findMany({
+    include: {
+      memberships: { include: { user: true } },
+      expenses: { include: { splits: true } },
+      contributions: true,
+    },
+  });
+};
+
+export const deleteTrip = async (id: string) => {
+  return prisma.trip.delete({ where: { id } });
 };
 
 export const getTripById = async (id: string) => {
-  return prisma.trip.findUnique({ where: { id } });
+  return prisma.trip.findUnique({
+    where: { id },
+    include: {
+      memberships: { include: { user: true } },
+      expenses: { include: { splits: true } },
+      contributions: true,
+    },
+  });
 };
 
 export const editTrip = async (

@@ -1,5 +1,11 @@
 import { Request, Response } from "express";
-import { createTrip, getTrips, getTripById, editTrip } from "@/services/trip";
+import {
+  createTrip,
+  getTrips,
+  getTripById,
+  editTrip,
+  deleteTrip,
+} from "@/services/trip";
 
 export const create = async (req: Request, res: Response) => {
   const { startDate, endDate } = req.body;
@@ -61,5 +67,20 @@ export const editTripById = async (req: Request, res: Response) => {
     res.status(200).json(updatedTrip);
   } catch (error) {
     res.status(400).json({ message: "更新旅程失敗" });
+  }
+};
+
+export const remove = async (req: Request, res: Response) => {
+  try {
+    const { tripId } = req.params;
+
+    if (Array.isArray(tripId)) {
+      return res.status(400).json({ message: "無效的旅程" });
+    }
+
+    await deleteTrip(tripId);
+    res.status(204).send();
+  } catch (error) {
+    res.status(400).json({ message: "刪除旅程失敗" });
   }
 };
