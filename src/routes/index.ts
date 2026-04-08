@@ -18,6 +18,6 @@ base.use("/settlement/:tripId", settlementRoutes);
 base.use("/invitations/:tripId", invitationRoutes);
 base.use("/invitations", invitationPublicRoutes);
 
-router.use("/go-funny-api", base);
+router.use("/", base);
 
 export default router;
