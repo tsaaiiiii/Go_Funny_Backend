@@ -1,6 +1,9 @@
 import { prisma } from "@/lib/prisma";
+import { ensureTripAccess } from "@/services/access";
 
-export const getSettlement = async (tripId: string) => {
+export const getSettlement = async (tripId: string, userId: string) => {
+  await ensureTripAccess(tripId, userId);
+
   const trip = await prisma.trip.findUnique({ where: { id: tripId } });
 
   if (!trip) {

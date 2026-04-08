@@ -1,4 +1,6 @@
 import { Request, Response } from "express";
+import { isHttpError } from "@/lib/http-error";
+import { getRequiredAuth } from "@/middleware/auth";
 import {
   createInvitation,
   getInvitationByToken,
@@ -6,6 +8,8 @@ import {
 } from "@/services/invitation";
 
 export const create = async (req: Request, res: Response) => {
+  const { user } = getRequiredAuth(req);
+
   try {
     const { tripId } = req.params;
 
@@ -13,10 +17,12 @@ export const create = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "無效的旅程" });
     }
 
-    const { createdByUserId } = req.body;
-    const invitation = await createInvitation(tripId, createdByUserId);
+    const invitation = await createInvitation(tripId, user.id);
     res.status(201).json(invitation);
   } catch (error) {
+    if (isHttpError(error)) {
+      return res.status(error.status).json({ message: error.message });
+    }
     res.status(400).json({ message: "建立邀請失敗" });
   }
 };
@@ -42,6 +48,8 @@ export const getByToken = async (req: Request, res: Response) => {
 };
 
 export const accept = async (req: Request, res: Response) => {
+  const { user } = getRequiredAuth(req);
+
   try {
     const { token } = req.params;
 
@@ -49,8 +57,7 @@ export const accept = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "無效的邀請" });
     }
 
-    const { userId } = req.body;
-    const result = await acceptInvitation(token, userId);
+    const result = await acceptInvitation(token, user.id);
 
     if (!result) {
       return res.status(404).json({ message: "邀請不存在" });
@@ -62,6 +69,9 @@ export const accept = async (req: Request, res: Response) => {
 
     res.status(201).json(result);
   } catch (error) {
+    if (isHttpError(error)) {
+      return res.status(error.status).json({ message: error.message });
+    }
     res.status(400).json({ message: "接受邀請失敗" });
   }
 };

@@ -1,10 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { randomBytes } from "crypto";
+import { ensureTripAccess } from "@/services/access";
 
 export const createInvitation = async (
   tripId: string,
-  createdByUserId?: string,
+  createdByUserId: string,
 ) => {
+  await ensureTripAccess(tripId, createdByUserId);
+
   const token = randomBytes(16).toString("hex");
 
   return await prisma.invitation.create({
@@ -42,6 +45,19 @@ export const acceptInvitation = async (token: string, userId: string) => {
 
   if (invitation.maxUses && invitation.usedCount >= invitation.maxUses) {
     return { error: "邀請已達使用上限" };
+  }
+
+  const existingMembership = await prisma.tripMembership.findUnique({
+    where: {
+      tripId_userId: {
+        tripId: invitation.tripId,
+        userId,
+      },
+    },
+  });
+
+  if (existingMembership) {
+    return { error: "你已加入此旅程" };
   }
 
   const [membership] = await prisma.$transaction([

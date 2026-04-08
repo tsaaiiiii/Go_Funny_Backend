@@ -6,6 +6,7 @@ import contributionRoutes from "@/routes/contribution";
 import settlementRoutes from "@/routes/settlement";
 import invitationRoutes from "@/routes/invitation";
 import invitationPublicRoutes from "@/routes/invitationPublic";
+import { requireAuth } from "@/middleware/auth";
 
 const router = Router();
 const base = Router();
@@ -16,8 +17,8 @@ base.use("/expenses/:tripId", expenseRoutes);
 base.use("/contributions/:tripId", contributionRoutes);
 base.use("/settlement/:tripId", settlementRoutes);
 base.use("/invitations/:tripId", invitationRoutes);
-base.use("/invitations", invitationPublicRoutes);
 
-router.use("/", base);
+router.use("/invitations", invitationPublicRoutes);
+router.use("/", requireAuth, base);
 
 export default router;

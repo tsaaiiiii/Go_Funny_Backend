@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { ensureTripAccess } from "@/services/access";
 
 export const createTrip = async (data: {
   title: string;
@@ -6,12 +7,29 @@ export const createTrip = async (data: {
   startDate: Date;
   endDate: Date;
   location?: string;
+  userId: string;
 }) => {
-  return prisma.trip.create({ data });
+  const { userId, ...tripData } = data;
+
+  return prisma.trip.create({
+    data: {
+      ...tripData,
+      memberships: {
+        create: {
+          userId,
+        },
+      },
+    },
+  });
 };
 
-export const getTrips = async () => {
+export const getTrips = async (userId: string) => {
   return prisma.trip.findMany({
+    where: {
+      memberships: {
+        some: { userId },
+      },
+    },
     include: {
       memberships: { include: { user: true } },
       expenses: { include: { splits: true } },
@@ -20,13 +38,14 @@ export const getTrips = async () => {
   });
 };
 
-export const deleteTrip = async (id: string) => {
-  return prisma.trip.delete({ where: { id } });
-};
-
-export const getTripById = async (id: string) => {
-  return prisma.trip.findUnique({
-    where: { id },
+export const getTripById = async (id: string, userId: string) => {
+  return prisma.trip.findFirst({
+    where: {
+      id,
+      memberships: {
+        some: { userId },
+      },
+    },
     include: {
       memberships: { include: { user: true } },
       expenses: { include: { splits: true } },
@@ -37,6 +56,7 @@ export const getTripById = async (id: string) => {
 
 export const editTrip = async (
   id: string,
+  userId: string,
   data: {
     title?: string;
     mode?: "expense" | "pool";
@@ -45,5 +65,11 @@ export const editTrip = async (
     location?: string;
   },
 ) => {
+  await ensureTripAccess(id, userId);
   return prisma.trip.update({ where: { id }, data });
+};
+
+export const deleteTrip = async (id: string, userId: string) => {
+  await ensureTripAccess(id, userId);
+  return prisma.trip.delete({ where: { id } });
 };
