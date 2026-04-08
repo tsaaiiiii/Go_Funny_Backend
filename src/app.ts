@@ -27,7 +27,7 @@ app.use(
     credentials: true,
   }),
 );
-app.all("/auth/*splat", toNodeHandler(auth));
+app.all("/api/auth/*splat", toNodeHandler(auth));
 app.use(express.json()); // middleware：讓 app 能解析 JSON request body
 app.use(routes);
 
