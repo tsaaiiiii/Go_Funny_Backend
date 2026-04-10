@@ -1,0 +1,94 @@
+# @swagger
+# Trip endpoints
+/trips:
+  post:
+    tags: [Trip]
+    summary: 建立旅程
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [name, startDate, endDate]
+            properties:
+              name:
+                type: string
+                example: 東京五日遊
+              startDate:
+                type: string
+                format: date
+                example: "2026-05-01"
+              endDate:
+                type: string
+                format: date
+                example: "2026-05-05"
+    responses:
+      201:
+        description: 建立成功
+      400:
+        description: 建立失敗
+  get:
+    tags: [Trip]
+    summary: 取得所有旅程
+    responses:
+      200:
+        description: 旅程列表
+
+/trips/{tripId}:
+  get:
+    tags: [Trip]
+    summary: 取得單一旅程
+    parameters:
+      - in: path
+        name: tripId
+        required: true
+        schema:
+          type: string
+    responses:
+      200:
+        description: 旅程資料
+      404:
+        description: 旅程不存在
+  patch:
+    tags: [Trip]
+    summary: 編輯旅程
+    parameters:
+      - in: path
+        name: tripId
+        required: true
+        schema:
+          type: string
+    requestBody:
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              name:
+                type: string
+              startDate:
+                type: string
+                format: date
+              endDate:
+                type: string
+                format: date
+    responses:
+      200:
+        description: 更新成功
+      400:
+        description: 更新失敗
+  delete:
+    tags: [Trip]
+    summary: 刪除旅程
+    parameters:
+      - in: path
+        name: tripId
+        required: true
+        schema:
+          type: string
+    responses:
+      204:
+        description: 刪除成功
+      400:
+        description: 刪除失敗
