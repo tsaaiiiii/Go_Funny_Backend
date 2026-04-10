@@ -12,27 +12,48 @@
 
 ## 兩種分帳模式
 
-| 模式 | 說明 | 範例 |
-|------|------|------|
-| **expense**（分帳） | 有人先付錢，再拆帳給其他人 | A 付了午餐 300 元，三人平分 |
-| **pool**（公費） | 每人先繳公費進池子，費用從池子出 | 每人先繳 1000 元，旅途花費從中扣除 |
+| 模式                | 說明                             | 範例                               |
+| ------------------- | -------------------------------- | ---------------------------------- |
+| **expense**（分帳） | 有人先付錢，再拆帳給其他人       | A 付了午餐 300 元，三人平分        |
+| **pool**（公費）    | 每人先繳公費進池子，費用從池子出 | 每人先繳 1000 元，旅途花費從中扣除 |
 
 ## 技術棧
 
 - **Runtime** — Node.js + TypeScript
 - **Framework** — Express 5
 - **ORM** — Prisma 7
-- **Database** — PostgreSQL
+- **Database** — PostgreSQL (Neon)
+- **Deployment** — Render
 - **Package Manager** — pnpm
 
 ## 專案結構
 
 ```
 src/
-├── routes/        # 路由定義
-├── controllers/   # 請求處理、參數驗證
-├── services/      # 商業邏輯、資料庫操作
-└── lib/           # 共用工具（Prisma client）
+├── app.ts              # Express 應用程式進入點
+├── routes/             # 路由定義
+│   ├── index.ts        #   路由總入口
+│   ├── trip.ts         #   旅程 CRUD
+│   ├── expense.ts      #   費用記錄
+│   ├── contribution.ts #   公費繳納
+│   ├── member.ts       #   成員管理
+│   ├── settlement.ts   #   結算
+│   ├── invitation.ts   #   邀請（需登入）
+│   └── invitationPublic.ts # 邀請（公開）
+├── controllers/        # 請求處理、參數驗證
+├── services/           # 商業邏輯、資料庫操作
+│   └── access.ts       #   旅程權限驗證
+├── middleware/          # Express middleware
+│   ├── auth.ts         #   使用者認證
+│   └── cors.ts         #   CORS 設定
+├── lib/                # 共用工具
+│   ├── prisma.ts       #   Prisma client
+│   ├── auth.ts         #   better-auth 設定
+│   ├── auth-types.ts   #   認證相關型別
+│   ├── cors.ts         #   CORS 設定
+│   └── http-error.ts   #   HTTP 錯誤處理
+└── types/              # 型別定義
+    └── express.ts      #   Express 擴充型別
 ```
 
 ## 環境設定
