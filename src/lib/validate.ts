@@ -11,7 +11,14 @@ export const parseWithSchema = <T extends ZodType>(
     return schema.parse(input);
   } catch (error) {
     if (error instanceof ZodError) {
-      throw new HttpError(400, error.issues[0]?.message ?? "請求格式錯誤");
+      throw new HttpError(400, "請求格式錯誤", {
+        code: "validation_error",
+        issues: error.issues.map((issue) => ({
+          path: issue.path.join("."),
+          message: issue.message,
+          code: issue.code,
+        })),
+      });
     }
 
     throw error;

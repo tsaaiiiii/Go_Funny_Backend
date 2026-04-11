@@ -2,6 +2,7 @@ import { OpenAPIRegistry, OpenApiGeneratorV3 } from "@asteasolutions/zod-to-open
 import type { ZodType } from "zod";
 
 import {
+  badRequestErrorResponseSchema,
   contributionSchema,
   createContributionBodySchema,
   createExpenseBodySchema,
@@ -66,7 +67,7 @@ registry.registerPath({
   },
   responses: {
     201: jsonResponse(tripSchema, "建立成功"),
-    400: jsonResponse(errorResponseSchema, "建立失敗"),
+    400: jsonResponse(badRequestErrorResponseSchema, "請求格式錯誤或建立失敗"),
     401: unauthorizedResponse,
   },
 });
@@ -117,7 +118,7 @@ registry.registerPath({
   },
   responses: {
     200: jsonResponse(tripSchema, "更新成功"),
-    400: jsonResponse(errorResponseSchema, "更新失敗"),
+    400: jsonResponse(badRequestErrorResponseSchema, "請求格式錯誤或更新失敗"),
     401: unauthorizedResponse,
     404: jsonResponse(errorResponseSchema, "旅程不存在"),
   },
@@ -135,7 +136,7 @@ registry.registerPath({
   },
   responses: {
     204: { description: "刪除成功" },
-    400: jsonResponse(errorResponseSchema, "刪除失敗"),
+    400: jsonResponse(badRequestErrorResponseSchema, "請求格式錯誤或刪除失敗"),
     401: unauthorizedResponse,
     404: jsonResponse(errorResponseSchema, "旅程不存在"),
   },
@@ -157,7 +158,7 @@ registry.registerPath({
   },
   responses: {
     201: jsonResponse(expenseSchema, "新增成功"),
-    400: jsonResponse(errorResponseSchema, "新增失敗"),
+    400: jsonResponse(badRequestErrorResponseSchema, "請求格式錯誤或新增失敗"),
     401: unauthorizedResponse,
     404: jsonResponse(errorResponseSchema, "旅程不存在"),
   },
@@ -192,7 +193,7 @@ registry.registerPath({
   },
   responses: {
     204: { description: "刪除成功" },
-    400: jsonResponse(errorResponseSchema, "刪除失敗"),
+    400: jsonResponse(badRequestErrorResponseSchema, "請求格式錯誤或刪除失敗"),
     401: unauthorizedResponse,
     404: jsonResponse(errorResponseSchema, "費用不存在"),
   },
@@ -214,7 +215,7 @@ registry.registerPath({
   },
   responses: {
     201: jsonResponse(contributionSchema, "新增成功"),
-    400: jsonResponse(errorResponseSchema, "新增失敗"),
+    400: jsonResponse(badRequestErrorResponseSchema, "請求格式錯誤或新增失敗"),
     401: unauthorizedResponse,
     404: jsonResponse(errorResponseSchema, "旅程不存在"),
   },
@@ -266,7 +267,7 @@ registry.registerPath({
   },
   responses: {
     204: { description: "刪除成功" },
-    400: jsonResponse(errorResponseSchema, "刪除失敗"),
+    400: jsonResponse(badRequestErrorResponseSchema, "請求格式錯誤或刪除失敗"),
     401: unauthorizedResponse,
     404: jsonResponse(errorResponseSchema, "成員不存在"),
   },
@@ -301,7 +302,7 @@ registry.registerPath({
   },
   responses: {
     201: jsonResponse(invitationSchema, "建立成功"),
-    400: jsonResponse(errorResponseSchema, "建立失敗"),
+    400: jsonResponse(badRequestErrorResponseSchema, "請求格式錯誤或建立失敗"),
     401: unauthorizedResponse,
     404: jsonResponse(errorResponseSchema, "旅程不存在"),
   },
@@ -335,7 +336,7 @@ registry.registerPath({
   },
   responses: {
     201: jsonResponse(tripMembershipSchema, "接受成功"),
-    400: jsonResponse(errorResponseSchema, "接受失敗"),
+    400: jsonResponse(badRequestErrorResponseSchema, "請求格式錯誤或接受失敗"),
     401: unauthorizedResponse,
     404: jsonResponse(errorResponseSchema, "邀請不存在"),
   },

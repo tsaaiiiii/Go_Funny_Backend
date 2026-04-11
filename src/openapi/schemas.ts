@@ -25,12 +25,32 @@ export const invitationRoleSchema = z.enum(["editor"]).openapi("InvitationRole")
 
 export const errorResponseSchema = z
   .object({
+    code: z.string().openapi({ example: "not_found" }),
     message: z.string().openapi({ example: "旅程不存在" }),
   })
   .openapi("ErrorResponse");
 
+export const validationIssueSchema = z
+  .object({
+    path: z.string().openapi({ example: "title" }),
+    message: z.string().openapi({ example: "Invalid input: expected string, received undefined" }),
+    code: z.string().openapi({ example: "invalid_type" }),
+  })
+  .openapi("ValidationIssue");
+
+export const badRequestErrorResponseSchema = z
+  .object({
+    code: z.enum(["validation_error", "business_error"]).openapi({
+      example: "validation_error",
+    }),
+    message: z.string().openapi({ example: "請求格式錯誤" }),
+    issues: z.array(validationIssueSchema).optional(),
+  })
+  .openapi("BadRequestErrorResponse");
+
 export const unauthorizedErrorResponseSchema = z
   .object({
+    code: z.literal("unauthorized").openapi({ example: "unauthorized" }),
     message: z.string().openapi({ example: "請先登入" }),
   })
   .openapi("UnauthorizedErrorResponse");

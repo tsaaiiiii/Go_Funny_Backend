@@ -1,5 +1,9 @@
 import { Request, Response } from "express";
-import { isHttpError } from "@/lib/http-error";
+import {
+  createErrorResponseBody,
+  getHttpErrorResponseBody,
+  isHttpError,
+} from "@/lib/http-error";
 import { parseWithSchema } from "@/lib/validate";
 import { getRequiredAuth } from "@/middleware/auth";
 import {
@@ -18,9 +22,9 @@ export const getMemberList = async (req: Request, res: Response) => {
     res.json(members);
   } catch (error) {
     if (isHttpError(error)) {
-      return res.status(error.status).json({ message: error.message });
+      return res.status(error.status).json(getHttpErrorResponseBody(error));
     }
-    res.status(500).json({ message: "取得成員列表失敗" });
+    res.status(500).json(createErrorResponseBody(500, "取得成員列表失敗"));
   }
 };
 
@@ -37,8 +41,8 @@ export const remove = async (req: Request, res: Response) => {
     res.status(204).send();
   } catch (error) {
     if (isHttpError(error)) {
-      return res.status(error.status).json({ message: error.message });
+      return res.status(error.status).json(getHttpErrorResponseBody(error));
     }
-    res.status(400).json({ message: "刪除成員失敗" });
+    res.status(400).json(createErrorResponseBody(400, "刪除成員失敗"));
   }
 };

@@ -1,5 +1,9 @@
 import { Request, Response } from "express";
-import { isHttpError } from "@/lib/http-error";
+import {
+  createErrorResponseBody,
+  getHttpErrorResponseBody,
+  isHttpError,
+} from "@/lib/http-error";
 import { parseWithSchema } from "@/lib/validate";
 import { getRequiredAuth } from "@/middleware/auth";
 import {
@@ -31,9 +35,9 @@ export const create = async (req: Request, res: Response) => {
     res.status(201).json(contribution);
   } catch (error) {
     if (isHttpError(error)) {
-      return res.status(error.status).json({ message: error.message });
+      return res.status(error.status).json(getHttpErrorResponseBody(error));
     }
-    res.status(400).json({ message: "新增公費失敗" });
+    res.status(400).json(createErrorResponseBody(400, "新增公費失敗"));
   }
 };
 
@@ -46,8 +50,8 @@ export const getAll = async (req: Request, res: Response) => {
     res.json(contributions);
   } catch (error) {
     if (isHttpError(error)) {
-      return res.status(error.status).json({ message: error.message });
+      return res.status(error.status).json(getHttpErrorResponseBody(error));
     }
-    res.status(500).json({ message: "取得公費列表失敗" });
+    res.status(500).json(createErrorResponseBody(500, "取得公費列表失敗"));
   }
 };
