@@ -1,6 +1,12 @@
 import { Request, Response } from "express";
 import { isHttpError } from "@/lib/http-error";
+import { parseWithSchema } from "@/lib/validate";
 import { getRequiredAuth } from "@/middleware/auth";
+import {
+  createTripBodySchema,
+  tripIdParamsSchema,
+  updateTripBodySchema,
+} from "@/openapi/schemas";
 import {
   createTrip,
   getTrips,
@@ -10,12 +16,16 @@ import {
 } from "@/services/trip";
 
 export const create = async (req: Request, res: Response) => {
-  const { startDate, endDate } = req.body;
   const { user } = getRequiredAuth(req);
 
   try {
+    const { startDate, endDate, ...body } = parseWithSchema(
+      createTripBodySchema,
+      req.body,
+    );
+
     const trip = await createTrip({
-      ...req.body,
+      ...body,
       startDate: new Date(startDate),
       endDate: new Date(endDate),
       userId: user.id,
@@ -47,11 +57,7 @@ export const getById = async (req: Request, res: Response) => {
   const { user } = getRequiredAuth(req);
 
   try {
-    const { tripId } = req.params;
-
-    if (Array.isArray(tripId)) {
-      return res.status(400).json({ message: "無效的旅程" });
-    }
+    const { tripId } = parseWithSchema(tripIdParamsSchema, req.params);
 
     const trip = await getTripById(tripId, user.id);
 
@@ -71,15 +77,14 @@ export const editTripById = async (req: Request, res: Response) => {
   const { user } = getRequiredAuth(req);
 
   try {
-    const { tripId } = req.params;
-    const { startDate, endDate } = req.body;
-
-    if (Array.isArray(tripId)) {
-      return res.status(400).json({ message: "無效的旅程" });
-    }
+    const { tripId } = parseWithSchema(tripIdParamsSchema, req.params);
+    const { startDate, endDate, ...body } = parseWithSchema(
+      updateTripBodySchema,
+      req.body,
+    );
 
     const updatedTrip = await editTrip(tripId, user.id, {
-      ...req.body,
+      ...body,
       ...(startDate && { startDate: new Date(startDate) }),
       ...(endDate && { endDate: new Date(endDate) }),
     });
@@ -97,11 +102,7 @@ export const remove = async (req: Request, res: Response) => {
   const { user } = getRequiredAuth(req);
 
   try {
-    const { tripId } = req.params;
-
-    if (Array.isArray(tripId)) {
-      return res.status(400).json({ message: "無效的旅程" });
-    }
+    const { tripId } = parseWithSchema(tripIdParamsSchema, req.params);
 
     await deleteTrip(tripId, user.id);
     res.status(204).send();

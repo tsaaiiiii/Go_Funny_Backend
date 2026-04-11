@@ -1,6 +1,11 @@
 import { Request, Response } from "express";
 import { isHttpError } from "@/lib/http-error";
+import { parseWithSchema } from "@/lib/validate";
 import { getRequiredAuth } from "@/middleware/auth";
+import {
+  createContributionBodySchema,
+  tripIdParamsSchema,
+} from "@/openapi/schemas";
 import {
   createContribution,
   getContributions,
@@ -10,12 +15,11 @@ export const create = async (req: Request, res: Response) => {
   const { user } = getRequiredAuth(req);
 
   try {
-    const { tripId } = req.params;
-
-    if (Array.isArray(tripId)) {
-      return res.status(400).json({ message: "無效的旅程" });
-    }
-    const { membershipId, amount, date } = req.body;
+    const { tripId } = parseWithSchema(tripIdParamsSchema, req.params);
+    const { membershipId, amount, date } = parseWithSchema(
+      createContributionBodySchema,
+      req.body,
+    );
 
     const contribution = await createContribution({
       tripId,
@@ -37,11 +41,7 @@ export const getAll = async (req: Request, res: Response) => {
   const { user } = getRequiredAuth(req);
 
   try {
-    const { tripId } = req.params;
-
-    if (Array.isArray(tripId)) {
-      return res.status(400).json({ message: "無效的旅程" });
-    }
+    const { tripId } = parseWithSchema(tripIdParamsSchema, req.params);
     const contributions = await getContributions(tripId, user.id);
     res.json(contributions);
   } catch (error) {

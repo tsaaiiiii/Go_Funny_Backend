@@ -1,6 +1,8 @@
 import { Request, Response } from "express";
 import { isHttpError } from "@/lib/http-error";
+import { parseWithSchema } from "@/lib/validate";
 import { getRequiredAuth } from "@/middleware/auth";
+import { tokenParamsSchema, tripIdParamsSchema } from "@/openapi/schemas";
 import {
   createInvitation,
   getInvitationByToken,
@@ -11,11 +13,7 @@ export const create = async (req: Request, res: Response) => {
   const { user } = getRequiredAuth(req);
 
   try {
-    const { tripId } = req.params;
-
-    if (Array.isArray(tripId)) {
-      return res.status(400).json({ message: "無效的旅程" });
-    }
+    const { tripId } = parseWithSchema(tripIdParamsSchema, req.params);
 
     const invitation = await createInvitation(tripId, user.id);
     res.status(201).json(invitation);
@@ -29,11 +27,7 @@ export const create = async (req: Request, res: Response) => {
 
 export const getByToken = async (req: Request, res: Response) => {
   try {
-    const { token } = req.params;
-
-    if (Array.isArray(token)) {
-      return res.status(400).json({ message: "無效的邀請" });
-    }
+    const { token } = parseWithSchema(tokenParamsSchema, req.params);
 
     const invitation = await getInvitationByToken(token);
 
@@ -51,11 +45,7 @@ export const accept = async (req: Request, res: Response) => {
   const { user } = getRequiredAuth(req);
 
   try {
-    const { token } = req.params;
-
-    if (Array.isArray(token)) {
-      return res.status(400).json({ message: "無效的邀請" });
-    }
+    const { token } = parseWithSchema(tokenParamsSchema, req.params);
 
     const result = await acceptInvitation(token, user.id);
 

@@ -1,18 +1,21 @@
 import { Request, Response } from "express";
 import { isHttpError } from "@/lib/http-error";
+import { parseWithSchema } from "@/lib/validate";
 import { getRequiredAuth } from "@/middleware/auth";
+import {
+  createExpenseBodySchema,
+  tripIdExpenseIdParamsSchema,
+  tripIdParamsSchema,
+} from "@/openapi/schemas";
 import { createExpense, getExpenses, deleteExpense } from "@/services/expense";
 
 export const create = async (req: Request, res: Response) => {
   const { user } = getRequiredAuth(req);
 
   try {
-    const { tripId } = req.params;
-
-    if (Array.isArray(tripId)) {
-      return res.status(400).json({ message: "無效的旅程" });
-    }
-    const { title, amount, date, splitType, payerMembershipId, note } = req.body;
+    const { tripId } = parseWithSchema(tripIdParamsSchema, req.params);
+    const { title, amount, date, splitType, payerMembershipId, note } =
+      parseWithSchema(createExpenseBodySchema, req.body);
 
     const expense = await createExpense({
       tripId,
@@ -37,11 +40,7 @@ export const getAll = async (req: Request, res: Response) => {
   const { user } = getRequiredAuth(req);
 
   try {
-    const { tripId } = req.params;
-
-    if (Array.isArray(tripId)) {
-      return res.status(400).json({ message: "無效的旅程" });
-    }
+    const { tripId } = parseWithSchema(tripIdParamsSchema, req.params);
     const expenses = await getExpenses(tripId, user.id);
     res.json(expenses);
   } catch (error) {
@@ -56,16 +55,10 @@ export const remove = async (req: Request, res: Response) => {
   const { user } = getRequiredAuth(req);
 
   try {
-    const { tripId } = req.params;
-    const { expenseId } = req.params;
-
-    if (Array.isArray(tripId)) {
-      return res.status(400).json({ message: "無效的旅程" });
-    }
-
-    if (Array.isArray(expenseId)) {
-      return res.status(400).json({ message: "無效的費用" });
-    }
+    const { tripId, expenseId } = parseWithSchema(
+      tripIdExpenseIdParamsSchema,
+      req.params,
+    );
     await deleteExpense(expenseId, tripId, user.id);
     res.status(204).send();
   } catch (error) {

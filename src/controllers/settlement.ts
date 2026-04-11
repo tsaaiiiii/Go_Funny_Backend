@@ -1,17 +1,15 @@
 import { Request, Response } from "express";
 import { isHttpError } from "@/lib/http-error";
+import { parseWithSchema } from "@/lib/validate";
 import { getRequiredAuth } from "@/middleware/auth";
+import { tripIdParamsSchema } from "@/openapi/schemas";
 import { getSettlement } from "@/services/settlement";
 
 export const get = async (req: Request, res: Response) => {
   const { user } = getRequiredAuth(req);
 
   try {
-    const { tripId } = req.params;
-
-    if (Array.isArray(tripId)) {
-      return res.status(400).json({ message: "無效的旅程" });
-    }
+    const { tripId } = parseWithSchema(tripIdParamsSchema, req.params);
 
     const settlement = await getSettlement(tripId, user.id);
 
