@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { ensureTripAccess } from "@/services/access";
+import { ensureTripAccess, ensureTripOwner } from "@/services/access";
 
 export const createTrip = async (data: {
   title: string;
@@ -14,6 +14,7 @@ export const createTrip = async (data: {
   return prisma.trip.create({
     data: {
       ...tripData,
+      createdByUserId: userId,
       memberships: {
         create: {
           userId,
@@ -70,6 +71,6 @@ export const editTrip = async (
 };
 
 export const deleteTrip = async (id: string, userId: string) => {
-  await ensureTripAccess(id, userId);
+  await ensureTripOwner(id, userId);
   return prisma.trip.delete({ where: { id } });
 };

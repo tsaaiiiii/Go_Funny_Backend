@@ -26,6 +26,7 @@ export const isHttpError = (error: unknown): error is HttpError => {
 
 const defaultErrorCode = (status: number) => {
   if (status === 400) return "business_error";
+  if (status === 403) return "forbidden";
   if (status === 401) return "unauthorized";
   if (status === 404) return "not_found";
   if (status >= 500) return "internal_error";

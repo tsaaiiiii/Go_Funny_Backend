@@ -75,6 +75,7 @@ export const tripSchema = z
     startDate: dateTimeSchema,
     endDate: dateTimeSchema,
     mode: tripModeSchema,
+    createdByUserId: idSchema("cm123user"),
     createdAt: dateTimeSchema,
   })
   .openapi("Trip");

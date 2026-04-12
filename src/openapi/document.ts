@@ -137,6 +137,7 @@ registry.registerPath({
   responses: {
     204: { description: "刪除成功" },
     400: jsonResponse(badRequestErrorResponseSchema, "請求格式錯誤或刪除失敗"),
+    403: jsonResponse(errorResponseSchema, "只有旅程建立者可以刪除旅程"),
     401: unauthorizedResponse,
     404: jsonResponse(errorResponseSchema, "旅程不存在"),
   },
@@ -268,6 +269,7 @@ registry.registerPath({
   responses: {
     204: { description: "刪除成功" },
     400: jsonResponse(badRequestErrorResponseSchema, "請求格式錯誤或刪除失敗"),
+    403: jsonResponse(errorResponseSchema, "只有旅程建立者可以刪除成員"),
     401: unauthorizedResponse,
     404: jsonResponse(errorResponseSchema, "成員不存在"),
   },

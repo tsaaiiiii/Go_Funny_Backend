@@ -18,6 +18,21 @@ export const ensureTripAccess = async (tripId: string, userId: string) => {
   return membership;
 };
 
+export const ensureTripOwner = async (tripId: string, userId: string) => {
+  await ensureTripAccess(tripId, userId);
+
+  const trip = await prisma.trip.findUnique({
+    where: { id: tripId },
+    select: { createdByUserId: true },
+  });
+
+  if (!trip || trip.createdByUserId !== userId) {
+    throw new HttpError(403, "只有旅程建立者可以執行此操作");
+  }
+
+  return trip;
+};
+
 export const ensureMembershipBelongsToTrip = async (
   membershipId: string,
   tripId: string,
