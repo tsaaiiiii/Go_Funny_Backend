@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import { ensureTripAccess, ensureTripOwner } from "@/services/access";
+import { HttpError } from "@/lib/http-error";
+import { ensureTripAccess } from "@/services/access";
 
 export const createTrip = async (data: {
   title: string;
@@ -71,6 +72,18 @@ export const editTrip = async (
 };
 
 export const deleteTrip = async (id: string, userId: string) => {
-  await ensureTripOwner(id, userId);
+  const trip = await prisma.trip.findUnique({
+    where: { id },
+    select: { createdByUserId: true },
+  });
+
+  if (!trip) {
+    throw new HttpError(404, "旅程不存在");
+  }
+
+  if (trip.createdByUserId !== userId) {
+    throw new HttpError(403, "只有旅程建立者可以執行此操作");
+  }
+
   return prisma.trip.delete({ where: { id } });
 };

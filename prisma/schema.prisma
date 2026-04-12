@@ -102,7 +102,7 @@ model TripMembership {
   userId        String         @map("user_id")
   createdAt     DateTime       @default(now()) @map("created_at")
 
-  trip          Trip           @relation(fields: [tripId], references: [id])
+  trip          Trip           @relation(fields: [tripId], references: [id], onDelete: Cascade)
   user          User           @relation(fields: [userId], references: [id])
   expenses      Expense[]
   splits        ExpenseSplit[]
@@ -129,7 +129,7 @@ model Expense {
   note              String?
   createdAt         DateTime        @default(now()) @map("created_at")
 
-  trip              Trip            @relation(fields: [tripId], references: [id])
+  trip              Trip            @relation(fields: [tripId], references: [id], onDelete: Cascade)
   payerMembership   TripMembership? @relation(fields: [payerMembershipId], references: [id])
   splits            ExpenseSplit[]
 
@@ -143,7 +143,7 @@ model ExpenseSplit {
   amount       Int
   createdAt    DateTime       @default(now()) @map("created_at")
 
-  expense      Expense        @relation(fields: [expenseId], references: [id])
+  expense      Expense        @relation(fields: [expenseId], references: [id], onDelete: Cascade)
   membership   TripMembership @relation(fields: [membershipId], references: [id])
 
   @@unique([expenseId, membershipId])
@@ -158,7 +158,7 @@ model Contribution {
   date         DateTime
   createdAt    DateTime       @default(now()) @map("created_at")
 
-  trip         Trip           @relation(fields: [tripId], references: [id])
+  trip         Trip           @relation(fields: [tripId], references: [id], onDelete: Cascade)
   membership   TripMembership @relation(fields: [membershipId], references: [id])
 
   @@map("contribution")
@@ -181,7 +181,7 @@ model Invitation {
   createdByUserId String?         @map("created_by_user_id")
   createdAt       DateTime        @default(now()) @map("created_at")
 
-  trip            Trip            @relation(fields: [tripId], references: [id])
+  trip            Trip            @relation(fields: [tripId], references: [id], onDelete: Cascade)
   createdByUser   User?           @relation(fields: [createdByUserId], references: [id])
 
   @@map("invitation")
