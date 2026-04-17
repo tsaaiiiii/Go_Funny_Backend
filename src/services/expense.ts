@@ -37,6 +37,42 @@ export const getExpenses = async (tripId: string, userId: string) => {
   });
 };
 
+export const updateExpense = async (
+  expenseId: string,
+  tripId: string,
+  userId: string,
+  data: {
+    title?: string;
+    amount?: number;
+    date?: Date;
+    splitType?: "equal_all" | "equal_selected" | "custom";
+    payerMembershipId?: string | null;
+    note?: string | null;
+  },
+) => {
+  await ensureTripAccess(tripId, userId);
+
+  const expense = await prisma.expense.findFirst({
+    where: {
+      id: expenseId,
+      tripId,
+    },
+  });
+
+  if (!expense) {
+    throw new HttpError(404, "費用不存在");
+  }
+
+  if (data.payerMembershipId) {
+    await ensureMembershipBelongsToTrip(data.payerMembershipId, tripId);
+  }
+
+  return await prisma.expense.update({
+    where: { id: expenseId },
+    data,
+  });
+};
+
 export const deleteExpense = async (
   expenseId: string,
   tripId: string,

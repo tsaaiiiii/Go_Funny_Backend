@@ -21,6 +21,7 @@ import {
   tripMembershipWithUserSchema,
   tripSchema,
   unauthorizedErrorResponseSchema,
+  updateExpenseBodySchema,
   updateTripBodySchema,
 } from "@/openapi/schemas";
 
@@ -179,6 +180,28 @@ registry.registerPath({
     200: jsonResponse(zArray(expenseSchema), "費用列表"),
     401: unauthorizedResponse,
     404: jsonResponse(errorResponseSchema, "旅程不存在"),
+  },
+});
+
+registry.registerPath({
+  method: "patch",
+  path: "/expenses/{tripId}/{expenseId}",
+  tags: ["Expenses"],
+  operationId: "updateTripExpense",
+  summary: "編輯費用",
+  security: [{ cookieAuth: [] }],
+  request: {
+    params: tripIdExpenseIdParamsSchema,
+    body: {
+      required: true,
+      content: jsonContent(updateExpenseBodySchema),
+    },
+  },
+  responses: {
+    200: jsonResponse(expenseSchema, "更新成功"),
+    400: jsonResponse(badRequestErrorResponseSchema, "請求格式錯誤或更新失敗"),
+    401: unauthorizedResponse,
+    404: jsonResponse(errorResponseSchema, "費用不存在"),
   },
 });
 

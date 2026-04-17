@@ -10,8 +10,14 @@ import {
   createExpenseBodySchema,
   tripIdExpenseIdParamsSchema,
   tripIdParamsSchema,
+  updateExpenseBodySchema,
 } from "@/openapi/schemas";
-import { createExpense, getExpenses, deleteExpense } from "@/services/expense";
+import {
+  createExpense,
+  getExpenses,
+  updateExpense,
+  deleteExpense,
+} from "@/services/expense";
 
 export const create = async (req: Request, res: Response) => {
   const { user } = getRequiredAuth(req);
@@ -52,6 +58,34 @@ export const getAll = async (req: Request, res: Response) => {
       return res.status(error.status).json(getHttpErrorResponseBody(error));
     }
     res.status(500).json(createErrorResponseBody(500, "取得費用列表失敗"));
+  }
+};
+
+export const edit = async (req: Request, res: Response) => {
+  const { user } = getRequiredAuth(req);
+
+  try {
+    const { tripId, expenseId } = parseWithSchema(
+      tripIdExpenseIdParamsSchema,
+      req.params,
+    );
+    const { title, amount, date, splitType, payerMembershipId, note } =
+      parseWithSchema(updateExpenseBodySchema, req.body);
+
+    const expense = await updateExpense(expenseId, tripId, user.id, {
+      title,
+      amount,
+      date: date ? new Date(date) : undefined,
+      splitType,
+      payerMembershipId,
+      note,
+    });
+    res.status(200).json(expense);
+  } catch (error) {
+    if (isHttpError(error)) {
+      return res.status(error.status).json(getHttpErrorResponseBody(error));
+    }
+    res.status(400).json(createErrorResponseBody(400, "編輯費用失敗"));
   }
 };
 
