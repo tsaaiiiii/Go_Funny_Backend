@@ -11,6 +11,7 @@ export const getSettlement = async (tripId: string, userId: string) => {
   }
 
   const balances: Record<string, number> = {};
+  let unallocated = 0;
 
   if (trip.mode === "expense") {
     const expenses = await prisma.expense.findMany({
@@ -19,15 +20,22 @@ export const getSettlement = async (tripId: string, userId: string) => {
     });
 
     for (const expense of expenses) {
+      const splitsTotal = expense.splits.reduce(
+        (sum, split) => sum + split.amount,
+        0,
+      );
+
       if (expense.payerMembershipId) {
         balances[expense.payerMembershipId] =
-          (balances[expense.payerMembershipId] ?? 0) + expense.amount;
+          (balances[expense.payerMembershipId] ?? 0) + splitsTotal;
       }
 
       for (const split of expense.splits) {
         balances[split.membershipId] =
           (balances[split.membershipId] ?? 0) - split.amount;
       }
+
+      unallocated += expense.amount - splitsTotal;
     }
   } else {
     const contributions = await prisma.contribution.findMany({
@@ -44,15 +52,19 @@ export const getSettlement = async (tripId: string, userId: string) => {
       (sum, expense) => sum + expense.amount,
       0,
     );
-    const perPerson = totalExpense / members.length;
+
+    if (members.length > 0) {
+      const perPerson = Math.floor(totalExpense / members.length);
+      unallocated = totalExpense - perPerson * members.length;
+
+      for (const member of members) {
+        balances[member.id] = (balances[member.id] ?? 0) - perPerson;
+      }
+    }
 
     for (const contribution of contributions) {
       balances[contribution.membershipId] =
         (balances[contribution.membershipId] ?? 0) + contribution.amount;
-    }
-
-    for (const member of members) {
-      balances[member.id] = (balances[member.id] ?? 0) - perPerson;
     }
   }
 
@@ -92,5 +104,5 @@ export const getSettlement = async (tripId: string, userId: string) => {
     if (creditors[creditorIndex].amount === 0) creditorIndex++;
   }
 
-  return { tripId, mode: trip.mode, transfers };
+  return { tripId, mode: trip.mode, transfers, unallocated };
 };

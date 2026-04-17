@@ -8,7 +8,7 @@ import {
   createExpenseBodySchema,
   createTripBodySchema,
   errorResponseSchema,
-  expenseSchema,
+  expenseWithSplitsSchema,
   invitationSchema,
   invitationWithTripSchema,
   settlementSchema,
@@ -159,7 +159,7 @@ registry.registerPath({
     },
   },
   responses: {
-    201: jsonResponse(expenseSchema, "新增成功"),
+    201: jsonResponse(expenseWithSplitsSchema, "新增成功"),
     400: jsonResponse(badRequestErrorResponseSchema, "請求格式錯誤或新增失敗"),
     401: unauthorizedResponse,
     404: jsonResponse(errorResponseSchema, "旅程不存在"),
@@ -177,7 +177,7 @@ registry.registerPath({
     params: tripIdParamsSchema,
   },
   responses: {
-    200: jsonResponse(zArray(expenseSchema), "費用列表"),
+    200: jsonResponse(zArray(expenseWithSplitsSchema), "費用列表"),
     401: unauthorizedResponse,
     404: jsonResponse(errorResponseSchema, "旅程不存在"),
   },
@@ -198,7 +198,7 @@ registry.registerPath({
     },
   },
   responses: {
-    200: jsonResponse(expenseSchema, "更新成功"),
+    200: jsonResponse(expenseWithSplitsSchema, "更新成功"),
     400: jsonResponse(badRequestErrorResponseSchema, "請求格式錯誤或更新失敗"),
     401: unauthorizedResponse,
     404: jsonResponse(errorResponseSchema, "費用不存在"),

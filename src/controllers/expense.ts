@@ -24,7 +24,7 @@ export const create = async (req: Request, res: Response) => {
 
   try {
     const { tripId } = parseWithSchema(tripIdParamsSchema, req.params);
-    const { title, amount, date, splitType, payerMembershipId, note } =
+    const { title, amount, date, splitType, payerMembershipId, note, splits } =
       parseWithSchema(createExpenseBodySchema, req.body);
 
     const expense = await createExpense({
@@ -35,6 +35,7 @@ export const create = async (req: Request, res: Response) => {
       splitType,
       payerMembershipId,
       note,
+      splits,
       userId: user.id,
     });
     res.status(201).json(expense);
@@ -69,7 +70,7 @@ export const edit = async (req: Request, res: Response) => {
       tripIdExpenseIdParamsSchema,
       req.params,
     );
-    const { title, amount, date, splitType, payerMembershipId, note } =
+    const { title, amount, date, splitType, payerMembershipId, note, splits } =
       parseWithSchema(updateExpenseBodySchema, req.body);
 
     const expense = await updateExpense(expenseId, tripId, user.id, {
@@ -79,6 +80,7 @@ export const edit = async (req: Request, res: Response) => {
       splitType,
       payerMembershipId,
       note,
+      splits,
     });
     res.status(200).json(expense);
   } catch (error) {

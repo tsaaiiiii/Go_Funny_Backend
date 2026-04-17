@@ -105,6 +105,13 @@ export const expenseSplitSchema = z
   })
   .openapi("ExpenseSplit");
 
+export const expenseSplitInputSchema = z
+  .strictObject({
+    membershipId: idSchema("cm123membership"),
+    amount: z.number().int().min(0).openapi({ example: 600 }),
+  })
+  .openapi("ExpenseSplitInput");
+
 export const expenseSchema = z
   .object({
     id: idSchema("cm123expense"),
@@ -179,6 +186,7 @@ export const settlementSchema = z
     tripId: idSchema("cm123trip"),
     mode: tripModeSchema,
     transfers: z.array(settlementTransferSchema),
+    unallocated: z.number().int().min(0).openapi({ example: 3 }),
   })
   .openapi("Settlement");
 
@@ -205,22 +213,24 @@ export const updateTripBodySchema = z
 export const createExpenseBodySchema = z
   .strictObject({
     title: z.string().min(1).openapi({ example: "午餐" }),
-    amount: z.number().int().openapi({ example: 1200 }),
+    amount: z.number().int().min(0).openapi({ example: 1200 }),
     date: dateSchema,
     splitType: splitTypeSchema,
     payerMembershipId: idSchema("cm123membership").optional(),
     note: z.string().min(1).optional().openapi({ example: "晴空塔附近" }),
+    splits: z.array(expenseSplitInputSchema).optional(),
   })
   .openapi("CreateExpenseRequest");
 
 export const updateExpenseBodySchema = z
   .strictObject({
     title: z.string().min(1).optional().openapi({ example: "午餐" }),
-    amount: z.number().int().optional().openapi({ example: 1200 }),
+    amount: z.number().int().min(0).optional().openapi({ example: 1200 }),
     date: dateSchema.optional(),
     splitType: splitTypeSchema.optional(),
     payerMembershipId: idSchema("cm123membership").nullable().optional(),
     note: z.string().min(1).nullable().optional().openapi({ example: "晴空塔附近" }),
+    splits: z.array(expenseSplitInputSchema).optional(),
   })
   .openapi("UpdateExpenseRequest");
 
