@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { randomBytes } from "crypto";
 import { ensureTripAccess } from "@/services/access";
 
+const DEFAULT_INVITATION_EXPIRES_IN_MS = 24 * 60 * 60 * 1000;
+
 export const createInvitation = async (
   tripId: string,
   createdByUserId: string,
@@ -9,12 +11,14 @@ export const createInvitation = async (
   await ensureTripAccess(tripId, createdByUserId);
 
   const token = randomBytes(16).toString("hex");
+  const expiresAt = new Date(Date.now() + DEFAULT_INVITATION_EXPIRES_IN_MS);
 
   return await prisma.invitation.create({
     data: {
       tripId,
       token,
       createdByUserId,
+      expiresAt,
     },
   });
 };
