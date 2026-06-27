@@ -1,4 +1,7 @@
-import { prisma } from "@/lib/prisma";
+import { and, asc, eq, inArray } from "drizzle-orm";
+
+import { expense, expenseSplit, tripMembership } from "@/db/schema";
+import { newId, type AppDb } from "@/db/client";
 import { HttpError } from "@/lib/http-error";
 import {
   ensureMembershipBelongsToTrip,
@@ -30,16 +33,19 @@ const ensureUniqueMembershipIds = (splits: ExpenseSplitInput[]) => {
 };
 
 const ensureMembershipsBelongToTrip = async (
+  db: AppDb,
   membershipIds: string[],
   tripId: string,
 ) => {
-  const memberships = await prisma.tripMembership.findMany({
-    where: {
-      tripId,
-      id: { in: membershipIds },
-    },
-    select: { id: true },
-  });
+  const memberships = await db
+    .select({ id: tripMembership.id })
+    .from(tripMembership)
+    .where(
+      and(
+        eq(tripMembership.tripId, tripId),
+        inArray(tripMembership.id, membershipIds),
+      ),
+    );
 
   if (memberships.length !== membershipIds.length) {
     throw new HttpError(400, "分攤成員不屬於此旅程");
@@ -59,19 +65,20 @@ const splitAmountEvenly = (
 };
 
 const buildExpenseSplits = async (data: {
+  db: AppDb;
   tripId: string;
   amount: number;
   splitType: SplitType;
   splits?: ExpenseSplitInput[];
 }): Promise<ExpenseSplitCreateInput[]> => {
-  const { tripId, amount, splitType, splits } = data;
+  const { db, tripId, amount, splitType, splits } = data;
 
   if (splitType === "equal_all") {
-    const memberships = await prisma.tripMembership.findMany({
-      where: { tripId },
-      orderBy: { createdAt: "asc" },
-      select: { id: true },
-    });
+    const memberships = await db
+      .select({ id: tripMembership.id })
+      .from(tripMembership)
+      .where(eq(tripMembership.tripId, tripId))
+      .orderBy(asc(tripMembership.createdAt));
 
     if (memberships.length === 0) {
       throw new HttpError(400, "旅程沒有可分攤成員");
@@ -89,6 +96,7 @@ const buildExpenseSplits = async (data: {
 
   ensureUniqueMembershipIds(splits);
   await ensureMembershipsBelongToTrip(
+    db,
     splits.map((split) => split.membershipId),
     tripId,
   );
@@ -110,6 +118,7 @@ const buildExpenseSplits = async (data: {
 };
 
 export const createExpense = async (data: {
+  db: AppDb;
   tripId: string;
   title: string;
   amount: number;
@@ -120,45 +129,65 @@ export const createExpense = async (data: {
   splits?: ExpenseSplitInput[];
   userId: string;
 }) => {
-  const { userId, splits, ...expenseData } = data;
+  const { db, userId, splits, ...expenseData } = data;
 
-  await ensureTripAccess(expenseData.tripId, userId);
+  await ensureTripAccess(db, expenseData.tripId, userId);
 
   if (expenseData.payerMembershipId) {
     await ensureMembershipBelongsToTrip(
+      db,
       expenseData.payerMembershipId,
       expenseData.tripId,
     );
   }
 
   const expenseSplits = await buildExpenseSplits({
+    db,
     tripId: expenseData.tripId,
     amount: expenseData.amount,
     splitType: expenseData.splitType,
     splits,
   });
 
-  return await prisma.expense.create({
-    data: {
-      ...expenseData,
-      splits: {
-        create: expenseSplits,
-      },
-    },
-    include: { splits: true },
-  });
+  const newExpense = { id: newId(), ...expenseData };
+  await db.insert(expense).values(newExpense);
+
+  const createdSplits = expenseSplits.map((split) => ({
+    id: newId(),
+    expenseId: newExpense.id,
+    ...split,
+  }));
+  if (createdSplits.length > 0) {
+    await db.insert(expenseSplit).values(createdSplits);
+  }
+
+  return { ...newExpense, splits: createdSplits };
 };
 
-export const getExpenses = async (tripId: string, userId: string) => {
-  await ensureTripAccess(tripId, userId);
+export const getExpenses = async (db: AppDb, tripId: string, userId: string) => {
+  await ensureTripAccess(db, tripId, userId);
 
-  return await prisma.expense.findMany({
-    where: { tripId },
-    include: { splits: true },
-  });
+  const expenses = await db
+    .select()
+    .from(expense)
+    .where(eq(expense.tripId, tripId));
+  const expenseIds = expenses.map((item) => item.id);
+  const splits =
+    expenseIds.length > 0
+      ? await db
+          .select()
+          .from(expenseSplit)
+          .where(inArray(expenseSplit.expenseId, expenseIds))
+      : [];
+
+  return expenses.map((item) => ({
+    ...item,
+    splits: splits.filter((split) => split.expenseId === item.id),
+  }));
 };
 
 export const updateExpense = async (
+  db: AppDb,
   expenseId: string,
   tripId: string,
   userId: string,
@@ -172,26 +201,23 @@ export const updateExpense = async (
     splits?: ExpenseSplitInput[];
   },
 ) => {
-  await ensureTripAccess(tripId, userId);
+  await ensureTripAccess(db, tripId, userId);
 
-  const expense = await prisma.expense.findFirst({
-    where: {
-      id: expenseId,
-      tripId,
-    },
+  const currentExpense = await db.query.expense.findFirst({
+    where: and(eq(expense.id, expenseId), eq(expense.tripId, tripId)),
   });
 
-  if (!expense) {
+  if (!currentExpense) {
     throw new HttpError(404, "費用不存在");
   }
 
   if (data.payerMembershipId) {
-    await ensureMembershipBelongsToTrip(data.payerMembershipId, tripId);
+    await ensureMembershipBelongsToTrip(db, data.payerMembershipId, tripId);
   }
 
   const { splits, ...expenseData } = data;
-  const nextAmount = expenseData.amount ?? expense.amount;
-  const nextSplitType = expenseData.splitType ?? expense.splitType;
+  const nextAmount = expenseData.amount ?? currentExpense.amount;
+  const nextSplitType = expenseData.splitType ?? currentExpense.splitType;
   const shouldRebuildSplits =
     splits !== undefined ||
     expenseData.amount !== undefined ||
@@ -199,6 +225,7 @@ export const updateExpense = async (
 
   const expenseSplits = shouldRebuildSplits
     ? await buildExpenseSplits({
+        db,
         tripId,
         amount: nextAmount,
         splitType: nextSplitType,
@@ -206,49 +233,54 @@ export const updateExpense = async (
       })
     : undefined;
 
-  return await prisma.$transaction(async (tx) => {
-    if (expenseSplits) {
-      await tx.expenseSplit.deleteMany({
-        where: { expenseId },
-      });
-    }
+  if (expenseSplits) {
+    await db.delete(expenseSplit).where(eq(expenseSplit.expenseId, expenseId));
+  }
 
-    return tx.expense.update({
-      where: { id: expenseId },
-      data: {
-        ...expenseData,
-        ...(expenseSplits
-          ? {
-              splits: {
-                create: expenseSplits,
-              },
-            }
-          : {}),
-      },
-      include: { splits: true },
-    });
-  });
+  const [updatedExpense] = await db
+    .update(expense)
+    .set(expenseData)
+    .where(eq(expense.id, expenseId))
+    .returning();
+
+  if (expenseSplits) {
+    const createdSplits = expenseSplits.map((split) => ({
+      id: newId(),
+      expenseId,
+      ...split,
+    }));
+    if (createdSplits.length > 0) {
+      await db.insert(expenseSplit).values(createdSplits);
+    }
+    return { ...updatedExpense, splits: createdSplits };
+  }
+
+  const existingSplits = await db
+    .select()
+    .from(expenseSplit)
+    .where(eq(expenseSplit.expenseId, expenseId));
+  return { ...updatedExpense, splits: existingSplits };
 };
 
 export const deleteExpense = async (
+  db: AppDb,
   expenseId: string,
   tripId: string,
   userId: string,
 ) => {
-  await ensureTripAccess(tripId, userId);
+  await ensureTripAccess(db, tripId, userId);
 
-  const expense = await prisma.expense.findFirst({
-    where: {
-      id: expenseId,
-      tripId,
-    },
+  const currentExpense = await db.query.expense.findFirst({
+    where: and(eq(expense.id, expenseId), eq(expense.tripId, tripId)),
   });
 
-  if (!expense) {
+  if (!currentExpense) {
     throw new HttpError(404, "費用不存在");
   }
 
-  return await prisma.expense.delete({
-    where: { id: expenseId },
-  });
+  const [deletedExpense] = await db
+    .delete(expense)
+    .where(eq(expense.id, expenseId))
+    .returning();
+  return deletedExpense;
 };

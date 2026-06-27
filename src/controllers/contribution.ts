@@ -1,9 +1,3 @@
-import { Request, Response } from "express";
-import {
-  createErrorResponseBody,
-  getHttpErrorResponseBody,
-  isHttpError,
-} from "@/lib/http-error";
 import { parseWithSchema } from "@/lib/validate";
 import { getRequiredAuth } from "@/middleware/auth";
 import {
@@ -14,44 +8,40 @@ import {
   createContribution,
   getContributions,
 } from "@/services/contribution";
+import { errorResponse, getJsonBody, type AppContext } from "@/controllers/utils";
 
-export const create = async (req: Request, res: Response) => {
-  const { user } = getRequiredAuth(req);
+export const create = async (c: AppContext) => {
+  const { user } = getRequiredAuth(c);
 
   try {
-    const { tripId } = parseWithSchema(tripIdParamsSchema, req.params);
+    const { tripId } = parseWithSchema(tripIdParamsSchema, c.req.param());
     const { membershipId, amount, date } = parseWithSchema(
       createContributionBodySchema,
-      req.body,
+      await getJsonBody(c),
     );
 
     const contribution = await createContribution({
+      db: c.var.db,
       tripId,
       membershipId,
       amount,
       date: new Date(date),
       userId: user.id,
     });
-    res.status(201).json(contribution);
+    return c.json(contribution, 201);
   } catch (error) {
-    if (isHttpError(error)) {
-      return res.status(error.status).json(getHttpErrorResponseBody(error));
-    }
-    res.status(400).json(createErrorResponseBody(400, "新增公費失敗"));
+    return errorResponse(c, error, 400, "新增公費失敗");
   }
 };
 
-export const getAll = async (req: Request, res: Response) => {
-  const { user } = getRequiredAuth(req);
+export const getAll = async (c: AppContext) => {
+  const { user } = getRequiredAuth(c);
 
   try {
-    const { tripId } = parseWithSchema(tripIdParamsSchema, req.params);
-    const contributions = await getContributions(tripId, user.id);
-    res.json(contributions);
+    const { tripId } = parseWithSchema(tripIdParamsSchema, c.req.param());
+    const contributions = await getContributions(c.var.db, tripId, user.id);
+    return c.json(contributions);
   } catch (error) {
-    if (isHttpError(error)) {
-      return res.status(error.status).json(getHttpErrorResponseBody(error));
-    }
-    res.status(500).json(createErrorResponseBody(500, "取得公費列表失敗"));
+    return errorResponse(c, error, 500, "取得公費列表失敗");
   }
 };

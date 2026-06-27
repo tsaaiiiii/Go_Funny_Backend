@@ -1,9 +1,4 @@
-import { Request, Response } from "express";
-import {
-  createErrorResponseBody,
-  getHttpErrorResponseBody,
-  isHttpError,
-} from "@/lib/http-error";
+import { createErrorResponseBody } from "@/lib/http-error";
 import { parseWithSchema } from "@/lib/validate";
 import { getRequiredAuth } from "@/middleware/auth";
 import {
@@ -18,102 +13,89 @@ import {
   editTrip,
   deleteTrip,
 } from "@/services/trip";
+import { errorResponse, getJsonBody, type AppContext } from "@/controllers/utils";
 
-export const create = async (req: Request, res: Response) => {
-  const { user } = getRequiredAuth(req);
+export const create = async (c: AppContext) => {
+  const { user } = getRequiredAuth(c);
 
   try {
     const { startDate, endDate, ...body } = parseWithSchema(
       createTripBodySchema,
-      req.body,
+      await getJsonBody(c),
     );
 
     const trip = await createTrip({
+      db: c.var.db,
       ...body,
       startDate: new Date(startDate),
       endDate: new Date(endDate),
       userId: user.id,
     });
-    res.status(201).json(trip);
+    return c.json(trip, 201);
   } catch (error) {
-    if (isHttpError(error)) {
-      return res.status(error.status).json(getHttpErrorResponseBody(error));
-    }
-    res.status(400).json(createErrorResponseBody(400, "建立失敗"));
+    return errorResponse(c, error, 400, "建立失敗");
   }
 };
 
-export const getAll = async (req: Request, res: Response) => {
-  const { user } = getRequiredAuth(req);
+export const getAll = async (c: AppContext) => {
+  const { user } = getRequiredAuth(c);
 
   try {
-    const trips = await getTrips(user.id);
-    res.json(trips);
+    const trips = await getTrips(c.var.db, user.id);
+    return c.json(trips);
   } catch (error) {
-    if (isHttpError(error)) {
-      return res.status(error.status).json(getHttpErrorResponseBody(error));
-    }
-    res.status(500).json(createErrorResponseBody(500, "取得列表失敗"));
+    return errorResponse(c, error, 500, "取得列表失敗");
   }
 };
 
-export const getById = async (req: Request, res: Response) => {
-  const { user } = getRequiredAuth(req);
+export const getById = async (c: AppContext) => {
+  const { user } = getRequiredAuth(c);
 
   try {
-    const { tripId } = parseWithSchema(tripIdParamsSchema, req.params);
+    const { tripId } = parseWithSchema(tripIdParamsSchema, c.req.param());
 
-    const trip = await getTripById(tripId, user.id);
+    const trip = await getTripById(c.var.db, tripId, user.id);
 
     if (!trip) {
-      return res.status(404).json(createErrorResponseBody(404, "旅程不存在"));
+      return c.json(createErrorResponseBody(404, "旅程不存在"), 404);
     }
-    res.json(trip);
+    return c.json(trip);
   } catch (error) {
-    if (isHttpError(error)) {
-      return res.status(error.status).json(getHttpErrorResponseBody(error));
-    }
-    res.status(500).json(createErrorResponseBody(500, "取得旅程失敗"));
+    return errorResponse(c, error, 500, "取得旅程失敗");
   }
 };
 
-export const editTripById = async (req: Request, res: Response) => {
-  const { user } = getRequiredAuth(req);
+export const editTripById = async (c: AppContext) => {
+  const { user } = getRequiredAuth(c);
 
   try {
-    const { tripId } = parseWithSchema(tripIdParamsSchema, req.params);
+    const { tripId } = parseWithSchema(tripIdParamsSchema, c.req.param());
     const { startDate, endDate, ...body } = parseWithSchema(
       updateTripBodySchema,
-      req.body,
+      await getJsonBody(c),
     );
 
-    const updatedTrip = await editTrip(tripId, user.id, {
+    const updatedTrip = await editTrip(c.var.db, tripId, user.id, {
       ...body,
       ...(startDate && { startDate: new Date(startDate) }),
       ...(endDate && { endDate: new Date(endDate) }),
     });
 
-    res.status(200).json(updatedTrip);
+    return c.json(updatedTrip);
   } catch (error) {
-    if (isHttpError(error)) {
-      return res.status(error.status).json(getHttpErrorResponseBody(error));
-    }
-    res.status(400).json(createErrorResponseBody(400, "更新旅程失敗"));
+    return errorResponse(c, error, 400, "更新旅程失敗");
   }
 };
 
-export const remove = async (req: Request, res: Response) => {
-  const { user } = getRequiredAuth(req);
+export const remove = async (c: AppContext) => {
+  const { user } = getRequiredAuth(c);
 
   try {
-    const { tripId } = parseWithSchema(tripIdParamsSchema, req.params);
+    const { tripId } = parseWithSchema(tripIdParamsSchema, c.req.param());
 
-    await deleteTrip(tripId, user.id);
-    res.status(204).send();
+    await deleteTrip(c.var.db, tripId, user.id);
+    return c.body(null, 204);
   } catch (error) {
-    if (isHttpError(error)) {
-      return res.status(error.status).json(getHttpErrorResponseBody(error));
-    }
-    res.status(400).json(createErrorResponseBody(400, "刪除旅程失敗"));
+    return errorResponse(c, error, 400, "刪除旅程失敗");
   }
 };

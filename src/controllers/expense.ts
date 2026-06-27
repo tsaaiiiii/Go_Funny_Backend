@@ -1,9 +1,3 @@
-import { Request, Response } from "express";
-import {
-  createErrorResponseBody,
-  getHttpErrorResponseBody,
-  isHttpError,
-} from "@/lib/http-error";
 import { parseWithSchema } from "@/lib/validate";
 import { getRequiredAuth } from "@/middleware/auth";
 import {
@@ -18,16 +12,18 @@ import {
   updateExpense,
   deleteExpense,
 } from "@/services/expense";
+import { errorResponse, getJsonBody, type AppContext } from "@/controllers/utils";
 
-export const create = async (req: Request, res: Response) => {
-  const { user } = getRequiredAuth(req);
+export const create = async (c: AppContext) => {
+  const { user } = getRequiredAuth(c);
 
   try {
-    const { tripId } = parseWithSchema(tripIdParamsSchema, req.params);
+    const { tripId } = parseWithSchema(tripIdParamsSchema, c.req.param());
     const { title, amount, date, splitType, payerMembershipId, note, splits } =
-      parseWithSchema(createExpenseBodySchema, req.body);
+      parseWithSchema(createExpenseBodySchema, await getJsonBody(c));
 
     const expense = await createExpense({
+      db: c.var.db,
       tripId,
       title,
       amount,
@@ -38,42 +34,36 @@ export const create = async (req: Request, res: Response) => {
       splits,
       userId: user.id,
     });
-    res.status(201).json(expense);
+    return c.json(expense, 201);
   } catch (error) {
-    if (isHttpError(error)) {
-      return res.status(error.status).json(getHttpErrorResponseBody(error));
-    }
-    res.status(400).json(createErrorResponseBody(400, "新增費用失敗"));
+    return errorResponse(c, error, 400, "新增費用失敗");
   }
 };
 
-export const getAll = async (req: Request, res: Response) => {
-  const { user } = getRequiredAuth(req);
+export const getAll = async (c: AppContext) => {
+  const { user } = getRequiredAuth(c);
 
   try {
-    const { tripId } = parseWithSchema(tripIdParamsSchema, req.params);
-    const expenses = await getExpenses(tripId, user.id);
-    res.json(expenses);
+    const { tripId } = parseWithSchema(tripIdParamsSchema, c.req.param());
+    const expenses = await getExpenses(c.var.db, tripId, user.id);
+    return c.json(expenses);
   } catch (error) {
-    if (isHttpError(error)) {
-      return res.status(error.status).json(getHttpErrorResponseBody(error));
-    }
-    res.status(500).json(createErrorResponseBody(500, "取得費用列表失敗"));
+    return errorResponse(c, error, 500, "取得費用列表失敗");
   }
 };
 
-export const edit = async (req: Request, res: Response) => {
-  const { user } = getRequiredAuth(req);
+export const edit = async (c: AppContext) => {
+  const { user } = getRequiredAuth(c);
 
   try {
     const { tripId, expenseId } = parseWithSchema(
       tripIdExpenseIdParamsSchema,
-      req.params,
+      c.req.param(),
     );
     const { title, amount, date, splitType, payerMembershipId, note, splits } =
-      parseWithSchema(updateExpenseBodySchema, req.body);
+      parseWithSchema(updateExpenseBodySchema, await getJsonBody(c));
 
-    const expense = await updateExpense(expenseId, tripId, user.id, {
+    const expense = await updateExpense(c.var.db, expenseId, tripId, user.id, {
       title,
       amount,
       date: date ? new Date(date) : undefined,
@@ -82,29 +72,23 @@ export const edit = async (req: Request, res: Response) => {
       note,
       splits,
     });
-    res.status(200).json(expense);
+    return c.json(expense);
   } catch (error) {
-    if (isHttpError(error)) {
-      return res.status(error.status).json(getHttpErrorResponseBody(error));
-    }
-    res.status(400).json(createErrorResponseBody(400, "編輯費用失敗"));
+    return errorResponse(c, error, 400, "編輯費用失敗");
   }
 };
 
-export const remove = async (req: Request, res: Response) => {
-  const { user } = getRequiredAuth(req);
+export const remove = async (c: AppContext) => {
+  const { user } = getRequiredAuth(c);
 
   try {
     const { tripId, expenseId } = parseWithSchema(
       tripIdExpenseIdParamsSchema,
-      req.params,
+      c.req.param(),
     );
-    await deleteExpense(expenseId, tripId, user.id);
-    res.status(204).send();
+    await deleteExpense(c.var.db, expenseId, tripId, user.id);
+    return c.body(null, 204);
   } catch (error) {
-    if (isHttpError(error)) {
-      return res.status(error.status).json(getHttpErrorResponseBody(error));
-    }
-    res.status(400).json(createErrorResponseBody(400, "刪除費用失敗"));
+    return errorResponse(c, error, 400, "刪除費用失敗");
   }
 };

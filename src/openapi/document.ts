@@ -25,8 +25,7 @@ import {
   updateTripBodySchema,
 } from "@/openapi/schemas";
 
-const port = process.env.PORT || 3000;
-const serverUrl = process.env.SERVER_URL || `http://localhost:${port}`;
+const serverUrl = "http://localhost:8787";
 
 const registry = new OpenAPIRegistry();
 

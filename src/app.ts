@@ -1,21 +1,44 @@
-import express from "express";
-import { toNodeHandler } from "better-auth/node";
-import swaggerUi from "swagger-ui-express";
+import { Hono } from "hono";
+import { cors } from "hono/cors";
 
-import { auth } from "@/lib/auth";
+import { createDb } from "@/db/client";
+import { createAuth } from "@/lib/auth";
 import { swaggerSpec } from "@/lib/swagger";
 import routes from "@/routes";
-import { createCors } from "@/middleware/cors";
+import type { AppEnv } from "@/types/app";
 
-const app = express();
+const app = new Hono<AppEnv>();
 
-app.use(createCors());
-app.all("/api/auth/*splat", toNodeHandler(auth));
-app.use(express.json());
+app.use("*", async (c, next) => {
+  const db = createDb(c.env.DB);
+  const auth = createAuth(db, c.env);
 
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-app.get("/openapi.json", (_req, res) => res.json(swaggerSpec));
+  c.set("db", db);
+  c.set("auth", auth);
+  await next();
+});
 
-app.use(routes);
+app.use(
+  "*",
+  cors({
+    origin: (origin, c) => {
+      const trustedOrigins = c.env.TRUSTED_ORIGINS?.split(",")
+        .map((item: string) => item.trim().replace(/\/+$/, ""))
+        .filter(Boolean) ?? ["http://localhost:5173"];
+
+      if (!origin) return trustedOrigins[0];
+      return trustedOrigins.includes(origin.replace(/\/+$/, ""))
+        ? origin
+        : trustedOrigins[0];
+    },
+    credentials: true,
+  }),
+);
+
+app.on(["GET", "POST"], "/api/auth/*", (c) => c.var.auth.handler(c.req.raw));
+app.get("/openapi.json", (c) => c.json(swaggerSpec));
+app.get("/", (c) => c.json({ ok: true }));
+
+app.route("/", routes);
 
 export default app;

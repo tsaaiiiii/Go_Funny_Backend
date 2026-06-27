@@ -1,7 +1,8 @@
-import { Router } from "express";
+import { Hono } from "hono";
 import { create, getAll, getById, editTripById, remove } from "@/controllers/trip";
+import type { AppEnv } from "@/types/app";
 
-const router = Router();
+const router = new Hono<AppEnv>();
 
 router.post("/", create);
 router.get("/", getAll);

@@ -1,39 +1,48 @@
-import { prisma } from "@/lib/prisma";
+import { and, eq } from "drizzle-orm";
+
+import { tripMembership, user } from "@/db/schema";
+import type { AppDb } from "@/db/client";
 import { HttpError } from "@/lib/http-error";
 import { ensureTripAccess, ensureTripOwner } from "@/services/access";
 
-export const getMembers = async (tripId: string, userId: string) => {
-  await ensureTripAccess(tripId, userId);
+export const getMembers = async (db: AppDb, tripId: string, userId: string) => {
+  await ensureTripAccess(db, tripId, userId);
 
-  return await prisma.tripMembership.findMany({
-    where: { tripId },
-    include: { user: true },
-  });
+  const memberships = await db
+    .select()
+    .from(tripMembership)
+    .innerJoin(user, eq(tripMembership.userId, user.id))
+    .where(eq(tripMembership.tripId, tripId));
+
+  return memberships.map((membership) => ({
+    ...membership.trip_membership,
+    user: membership.user,
+  }));
 };
 
 export const deleteMember = async (
+  db: AppDb,
   memberId: string,
   tripId: string,
   userId: string,
 ) => {
-  const trip = await ensureTripOwner(tripId, userId);
+  const currentTrip = await ensureTripOwner(db, tripId, userId);
 
-  const membership = await prisma.tripMembership.findFirst({
-    where: {
-      id: memberId,
-      tripId,
-    },
+  const membership = await db.query.tripMembership.findFirst({
+    where: and(eq(tripMembership.id, memberId), eq(tripMembership.tripId, tripId)),
   });
 
   if (!membership) {
     throw new HttpError(404, "成員不存在");
   }
 
-  if (membership.userId === trip.createdByUserId) {
+  if (membership.userId === currentTrip.createdByUserId) {
     throw new HttpError(400, "不可刪除旅程建立者");
   }
 
-  return await prisma.tripMembership.delete({
-    where: { id: memberId },
-  });
+  const [deletedMembership] = await db
+    .delete(tripMembership)
+    .where(eq(tripMembership.id, memberId))
+    .returning();
+  return deletedMembership;
 };

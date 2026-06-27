@@ -1,0 +1,11 @@
+name = "go-funny-backend"
+main = "src/worker.ts"
+compatibility_date = "2026-06-27"
+compatibility_flags = ["nodejs_compat"]
+minify = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "go-funny-db"
+database_id = "30551e99-7c64-43bc-aa42-8553c15d494f"
+migrations_dir = "drizzle"

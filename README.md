@@ -19,18 +19,20 @@
 
 ## 技術棧
 
-- **Runtime** — Node.js + TypeScript
-- **Framework** — Express 5
-- **ORM** — Prisma 7
-- **Database** — PostgreSQL (Neon)
-- **Deployment** — Render
+- **Runtime** — Cloudflare Workers + TypeScript
+- **Framework** — Hono
+- **ORM** — Drizzle ORM
+- **Database** — Cloudflare D1
+- **Deployment** — Cloudflare Workers
 - **Package Manager** — pnpm
 
 ## 專案結構
 
 ```
 src/
-├── app.ts              # Express 應用程式進入點
+├── app.ts              # Hono 應用程式進入點
+├── worker.ts           # Cloudflare Workers entry
+├── db/                 # Drizzle schema 與 D1 client
 ├── routes/             # 路由定義
 │   ├── index.ts        #   路由總入口
 │   ├── trip.ts         #   旅程 CRUD
@@ -43,17 +45,13 @@ src/
 ├── controllers/        # 請求處理、參數驗證
 ├── services/           # 商業邏輯、資料庫操作
 │   └── access.ts       #   旅程權限驗證
-├── middleware/          # Express middleware
-│   ├── auth.ts         #   使用者認證
-│   └── cors.ts         #   CORS 設定
+├── middleware/          # Hono middleware
+│   └── auth.ts         #   使用者認證
 ├── lib/                # 共用工具
-│   ├── prisma.ts       #   Prisma client
 │   ├── auth.ts         #   better-auth 設定
 │   ├── auth-types.ts   #   認證相關型別
-│   ├── cors.ts         #   CORS 設定
 │   └── http-error.ts   #   HTTP 錯誤處理
-└── types/              # 型別定義
-    └── express.ts      #   Express 擴充型別
+└── types/              # Cloudflare/Hono 型別定義
 ```
 
 ## 環境設定
@@ -66,68 +64,50 @@ cp .env.example .env
 
 ## 專案啟動
 
-### 方式一：使用整合指令 `setup`
-
-這個方式適合第一次把專案跑起來時使用，會依序執行：
-
-- 啟動 PostgreSQL
-- 安裝套件
-- 套用既有 Prisma migrations
-- 產生 Prisma Client
-
-```bash
-pnpm setup
-```
-
-### 方式二：手動逐步執行
-
-如果你想理解每一步在做什麼，可以手動執行以下指令。
-
-#### 1. 使用 Docker 啟動 PostgreSQL
-
-執行以下指令，啟動 `docker-compose.yml` 中定義的 PostgreSQL 服務：
-
-```bash
-docker compose up -d
-```
-
-#### 2. 安裝套件
+### 1. 安裝套件
 
 ```bash
 pnpm install
 ```
 
-#### 3. 套用既有 migrations
-
-如果專案已經有既有 migrations，只是要把這些變更同步到你的本地資料庫，使用：
+### 2. 建立 Cloudflare D1 database
 
 ```bash
-pnpm exec prisma migrate dev
+pnpm exec wrangler d1 create go-funny-db
 ```
 
-#### 4. 產生 Prisma Client
+把輸出的 `database_id` 填回 `wrangler.toml`。
+
+### 3. 套用 D1 migrations
+
+本地開發：
 
 ```bash
-pnpm exec prisma generate
+pnpm run db:apply:local
 ```
 
-## Prisma 指令用途
-
-- `migration`：用來管理資料庫結構變更，例如建立 table、新增 column、修改欄位型別或關聯。
-- 第一次建立 migration，或你剛修改完 `schema.prisma` 並要新增一筆資料庫結構變更紀錄時，使用：
+遠端環境：
 
 ```bash
-pnpm exec prisma migrate dev --name init
+pnpm run db:apply
 ```
 
-- `studio`：開啟網頁介面，可以直接瀏覽和編輯資料庫資料。
+### 4. 啟動本地 Workers
 
 ```bash
-pnpm exec prisma studio
+pnpm run dev
 ```
 
-- `seed`：用來寫入初始資料或假資料，例如測試用帳號、預設分類、基本設定資料。
+## Drizzle / D1 指令用途
+
+- `pnpm run db:generate`：根據 `src/db/schema.ts` 產生新的 Drizzle migration。
+- `pnpm run db:apply:local`：套用 migration 到本地 D1。
+- `pnpm run db:apply`：套用 migration 到 Cloudflare 遠端 D1。
+- `pnpm run deploy`：部署 Worker 到 Cloudflare。
+
+## 部署前檢查
 
 ```bash
-pnpm exec prisma db seed
+pnpm exec tsc --noEmit
+pnpm run build
 ```

@@ -1,31 +1,26 @@
-import { Request, Response } from "express";
 import {
   createErrorResponseBody,
-  getHttpErrorResponseBody,
-  isHttpError,
 } from "@/lib/http-error";
 import { parseWithSchema } from "@/lib/validate";
 import { getRequiredAuth } from "@/middleware/auth";
 import { tripIdParamsSchema } from "@/openapi/schemas";
 import { getSettlement } from "@/services/settlement";
+import { errorResponse, type AppContext } from "@/controllers/utils";
 
-export const get = async (req: Request, res: Response) => {
-  const { user } = getRequiredAuth(req);
+export const get = async (c: AppContext) => {
+  const { user } = getRequiredAuth(c);
 
   try {
-    const { tripId } = parseWithSchema(tripIdParamsSchema, req.params);
+    const { tripId } = parseWithSchema(tripIdParamsSchema, c.req.param());
 
-    const settlement = await getSettlement(tripId, user.id);
+    const settlement = await getSettlement(c.var.db, tripId, user.id);
 
     if (!settlement) {
-      return res.status(404).json(createErrorResponseBody(404, "旅程不存在"));
+      return c.json(createErrorResponseBody(404, "旅程不存在"), 404);
     }
 
-    res.json(settlement);
+    return c.json(settlement);
   } catch (error) {
-    if (isHttpError(error)) {
-      return res.status(error.status).json(getHttpErrorResponseBody(error));
-    }
-    res.status(500).json(createErrorResponseBody(500, "取得結算結果失敗"));
+    return errorResponse(c, error, 500, "取得結算結果失敗");
   }
 };

@@ -1,52 +1,69 @@
-import { prisma } from "@/lib/prisma";
+import { eq, inArray } from "drizzle-orm";
+
+import { contribution, expense, expenseSplit, trip, tripMembership } from "@/db/schema";
+import type { AppDb } from "@/db/client";
 import { ensureTripAccess } from "@/services/access";
 
-export const getSettlement = async (tripId: string, userId: string) => {
-  await ensureTripAccess(tripId, userId);
+export const getSettlement = async (db: AppDb, tripId: string, userId: string) => {
+  await ensureTripAccess(db, tripId, userId);
 
-  const trip = await prisma.trip.findUnique({ where: { id: tripId } });
+  const currentTrip = await db.query.trip.findFirst({
+    where: eq(trip.id, tripId),
+  });
 
-  if (!trip) {
+  if (!currentTrip) {
     return null;
   }
 
   const balances: Record<string, number> = {};
   let unallocated = 0;
 
-  if (trip.mode === "expense") {
-    const expenses = await prisma.expense.findMany({
-      where: { tripId },
-      include: { splits: true },
-    });
+  if (currentTrip.mode === "expense") {
+    const expenses = await db
+      .select()
+      .from(expense)
+      .where(eq(expense.tripId, tripId));
+    const expenseIds = expenses.map((item) => item.id);
+    const allSplits =
+      expenseIds.length > 0
+        ? await db
+            .select()
+            .from(expenseSplit)
+            .where(inArray(expenseSplit.expenseId, expenseIds))
+        : [];
 
-    for (const expense of expenses) {
-      const splitsTotal = expense.splits.reduce(
+    for (const currentExpense of expenses) {
+      const splits = allSplits.filter((split) => split.expenseId === currentExpense.id);
+      const splitsTotal = splits.reduce(
         (sum, split) => sum + split.amount,
         0,
       );
 
-      if (expense.payerMembershipId) {
-        balances[expense.payerMembershipId] =
-          (balances[expense.payerMembershipId] ?? 0) + splitsTotal;
+      if (currentExpense.payerMembershipId) {
+        balances[currentExpense.payerMembershipId] =
+          (balances[currentExpense.payerMembershipId] ?? 0) + splitsTotal;
       }
 
-      for (const split of expense.splits) {
+      for (const split of splits) {
         balances[split.membershipId] =
           (balances[split.membershipId] ?? 0) - split.amount;
       }
 
-      unallocated += expense.amount - splitsTotal;
+      unallocated += currentExpense.amount - splitsTotal;
     }
   } else {
-    const contributions = await prisma.contribution.findMany({
-      where: { tripId },
-    });
-    const expenses = await prisma.expense.findMany({
-      where: { tripId },
-    });
-    const members = await prisma.tripMembership.findMany({
-      where: { tripId },
-    });
+    const contributions = await db
+      .select()
+      .from(contribution)
+      .where(eq(contribution.tripId, tripId));
+    const expenses = await db
+      .select()
+      .from(expense)
+      .where(eq(expense.tripId, tripId));
+    const members = await db
+      .select()
+      .from(tripMembership)
+      .where(eq(tripMembership.tripId, tripId));
 
     const totalExpense = expenses.reduce(
       (sum, expense) => sum + expense.amount,
@@ -104,5 +121,5 @@ export const getSettlement = async (tripId: string, userId: string) => {
     if (creditors[creditorIndex].amount === 0) creditorIndex++;
   }
 
-  return { tripId, mode: trip.mode, transfers, unallocated };
+  return { tripId, mode: currentTrip.mode, transfers, unallocated };
 };

@@ -1,8 +1,5 @@
-import { Request, Response } from "express";
 import {
   createErrorResponseBody,
-  getHttpErrorResponseBody,
-  isHttpError,
 } from "@/lib/http-error";
 import { parseWithSchema } from "@/lib/validate";
 import { getRequiredAuth } from "@/middleware/auth";
@@ -12,62 +9,55 @@ import {
   getInvitationByToken,
   acceptInvitation,
 } from "@/services/invitation";
+import { errorResponse, type AppContext } from "@/controllers/utils";
 
-export const create = async (req: Request, res: Response) => {
-  const { user } = getRequiredAuth(req);
+export const create = async (c: AppContext) => {
+  const { user } = getRequiredAuth(c);
 
   try {
-    const { tripId } = parseWithSchema(tripIdParamsSchema, req.params);
+    const { tripId } = parseWithSchema(tripIdParamsSchema, c.req.param());
 
-    const invitation = await createInvitation(tripId, user.id);
-    res.status(201).json(invitation);
+    const invitation = await createInvitation(c.var.db, tripId, user.id);
+    return c.json(invitation, 201);
   } catch (error) {
-    if (isHttpError(error)) {
-      return res.status(error.status).json(getHttpErrorResponseBody(error));
-    }
-    res.status(400).json(createErrorResponseBody(400, "建立邀請失敗"));
+    return errorResponse(c, error, 400, "建立邀請失敗");
   }
 };
 
-export const getByToken = async (req: Request, res: Response) => {
+export const getByToken = async (c: AppContext) => {
   try {
-    const { token } = parseWithSchema(tokenParamsSchema, req.params);
+    const { token } = parseWithSchema(tokenParamsSchema, c.req.param());
 
-    const invitation = await getInvitationByToken(token);
+    const invitation = await getInvitationByToken(c.var.db, token);
 
     if (!invitation) {
-      return res.status(404).json(createErrorResponseBody(404, "邀請不存在"));
+      return c.json(createErrorResponseBody(404, "邀請不存在"), 404);
     }
 
-    res.json(invitation);
+    return c.json(invitation);
   } catch (error) {
-    res.status(500).json(createErrorResponseBody(500, "取得邀請資訊失敗"));
+    return errorResponse(c, error, 500, "取得邀請資訊失敗");
   }
 };
 
-export const accept = async (req: Request, res: Response) => {
-  const { user } = getRequiredAuth(req);
+export const accept = async (c: AppContext) => {
+  const { user } = getRequiredAuth(c);
 
   try {
-    const { token } = parseWithSchema(tokenParamsSchema, req.params);
+    const { token } = parseWithSchema(tokenParamsSchema, c.req.param());
 
-    const result = await acceptInvitation(token, user.id);
+    const result = await acceptInvitation(c.var.db, token, user.id);
 
     if (!result) {
-      return res.status(404).json(createErrorResponseBody(404, "邀請不存在"));
+      return c.json(createErrorResponseBody(404, "邀請不存在"), 404);
     }
 
     if ("error" in result) {
-      return res
-        .status(400)
-        .json(createErrorResponseBody(400, result.error));
+      return c.json(createErrorResponseBody(400, result.error), 400);
     }
 
-    res.status(201).json(result);
+    return c.json(result, 201);
   } catch (error) {
-    if (isHttpError(error)) {
-      return res.status(error.status).json(getHttpErrorResponseBody(error));
-    }
-    res.status(400).json(createErrorResponseBody(400, "接受邀請失敗"));
+    return errorResponse(c, error, 400, "接受邀請失敗");
   }
 };

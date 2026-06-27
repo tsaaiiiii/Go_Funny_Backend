@@ -1,7 +1,8 @@
-import { Router } from "express";
+import { Hono } from "hono";
 import { getMemberList, remove } from "@/controllers/member";
+import type { AppEnv } from "@/types/app";
 
-const router = Router({ mergeParams: true });
+const router = new Hono<AppEnv>();
 
 router.get("/", getMemberList);
 router.delete("/:memberId", remove);
