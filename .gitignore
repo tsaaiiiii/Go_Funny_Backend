@@ -5,3 +5,7 @@ build/
 .env.*
 !.env.example
 generated
+.wrangler/
+.agent/
+Dockerfile
+.dockerignore
