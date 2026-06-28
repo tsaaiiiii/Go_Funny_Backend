@@ -4,6 +4,9 @@ compatibility_date = "2026-06-27"
 compatibility_flags = ["nodejs_compat"]
 minify = true
 
+[vars]
+TRUSTED_ORIGINS = "http://localhost:5173,https://go-funny.pages.dev"
+
 [[d1_databases]]
 binding = "DB"
 database_name = "go-funny-db"
