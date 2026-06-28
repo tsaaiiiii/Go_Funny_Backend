@@ -6,6 +6,7 @@ minify = true
 
 [vars]
 TRUSTED_ORIGINS = "http://localhost:5173,https://go-funny.pages.dev"
+BETTER_AUTH_URL = "https://go-funny-backend.a0909513991.workers.dev"
 
 [[d1_databases]]
 binding = "DB"
