@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { contribution, trip } from "@/db/schema";
 import { newId, type AppDb } from "@/db/client";
 import { HttpError } from "@/lib/http-error";
-import { normalizeCurrencyCode, resolveSettlementAmount } from "@/lib/currency";
+import { normalizeCurrencyCode } from "@/lib/currency";
 import {
   ensureMembershipBelongsToTrip,
   ensureTripAccess,
@@ -23,7 +23,6 @@ export const createContribution = async (data: {
 
   await ensureTripAccess(db, contributionData.tripId, userId);
   const currentTrip = await db.query.trip.findFirst({
-    columns: { currency: true },
     where: eq(trip.id, contributionData.tripId),
   });
 
@@ -37,14 +36,6 @@ export const createContribution = async (data: {
   );
 
   const normalizedCurrency = normalizeCurrencyCode(currency ?? currentTrip.currency);
-  const settlementRate = exchangeRateToBase ?? 1;
-
-  if (
-    normalizedCurrency !== currentTrip.currency &&
-    exchangeRateToBase === undefined
-  ) {
-    throw new HttpError(400, "外幣記錄請提供匯率");
-  }
 
   const [createdContribution] = await db
     .insert(contribution)
@@ -52,11 +43,8 @@ export const createContribution = async (data: {
       id: newId(),
       ...contributionData,
       currency: normalizedCurrency,
-      exchangeRateToBase: settlementRate,
-      settlementAmount: resolveSettlementAmount(
-        contributionData.amount,
-        settlementRate,
-      ),
+      exchangeRateToBase: exchangeRateToBase ?? 1,
+      settlementAmount: contributionData.amount,
     })
     .returning();
   return createdContribution;

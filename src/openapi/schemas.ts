@@ -195,13 +195,19 @@ export const settlementTransferSchema = z
   })
   .openapi("SettlementTransfer");
 
+export const settlementCurrencyGroupSchema = z
+  .object({
+    currency: currencySchema,
+    transfers: z.array(settlementTransferSchema),
+    unallocated: z.number().int().min(0).openapi({ example: 3 }),
+  })
+  .openapi("SettlementCurrencyGroup");
+
 export const settlementSchema = z
   .object({
     tripId: idSchema("cm123trip"),
     mode: tripModeSchema,
-    currency: currencySchema,
-    transfers: z.array(settlementTransferSchema),
-    unallocated: z.number().int().min(0).openapi({ example: 3 }),
+    settlements: z.array(settlementCurrencyGroupSchema),
   })
   .openapi("Settlement");
 

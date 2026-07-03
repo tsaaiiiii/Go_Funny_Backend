@@ -3,7 +3,7 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 import { expense, expenseSplit, trip, tripMembership } from "@/db/schema";
 import { newId, type AppDb } from "@/db/client";
 import { HttpError } from "@/lib/http-error";
-import { normalizeCurrencyCode, resolveSettlementAmount } from "@/lib/currency";
+import { normalizeCurrencyCode } from "@/lib/currency";
 import {
   ensureMembershipBelongsToTrip,
   ensureTripAccess,
@@ -136,7 +136,6 @@ export const createExpense = async (data: {
 
   await ensureTripAccess(db, expenseData.tripId, userId);
   const currentTrip = await db.query.trip.findFirst({
-    columns: { currency: true },
     where: eq(trip.id, expenseData.tripId),
   });
 
@@ -153,21 +152,11 @@ export const createExpense = async (data: {
   }
 
   const normalizedCurrency = normalizeCurrencyCode(currency ?? currentTrip.currency);
-  const settlementRate = exchangeRateToBase ?? 1;
-
-  if (normalizedCurrency !== currentTrip.currency && exchangeRateToBase === undefined) {
-    throw new HttpError(400, "外幣記錄請提供匯率");
-  }
-
-  const settlementAmount = resolveSettlementAmount(
-    expenseData.amount,
-    settlementRate,
-  );
 
   const expenseSplits = await buildExpenseSplits({
     db,
     tripId: expenseData.tripId,
-    amount: settlementAmount,
+    amount: expenseData.amount,
     splitType: expenseData.splitType,
     splits,
   });
@@ -176,8 +165,8 @@ export const createExpense = async (data: {
     id: newId(),
     ...expenseData,
     currency: normalizedCurrency,
-    exchangeRateToBase: settlementRate,
-    settlementAmount,
+    exchangeRateToBase: exchangeRateToBase ?? 1,
+    settlementAmount: expenseData.amount,
   };
   await db.insert(expense).values(newExpense);
 
@@ -235,7 +224,6 @@ export const updateExpense = async (
   await ensureTripAccess(db, tripId, userId);
 
   const currentTrip = await db.query.trip.findFirst({
-    columns: { currency: true },
     where: eq(trip.id, tripId),
   });
 
@@ -266,25 +254,11 @@ export const updateExpense = async (
     currency !== undefined ||
     exchangeRateToBase !== undefined;
 
-  if (
-    nextCurrency !== currentTrip.currency &&
-    currency !== undefined &&
-    exchangeRateToBase === undefined &&
-    currentExpense.currency === currentTrip.currency
-  ) {
-    throw new HttpError(400, "外幣記錄請提供匯率");
-  }
-
-  const nextSettlementAmount = resolveSettlementAmount(
-    nextAmount,
-    nextExchangeRateToBase,
-  );
-
   const expenseSplits = shouldRebuildSplits
     ? await buildExpenseSplits({
         db,
         tripId,
-        amount: nextSettlementAmount,
+        amount: nextAmount,
         splitType: nextSplitType,
         splits,
       })
@@ -305,7 +279,7 @@ export const updateExpense = async (
       ...(expenseData.amount !== undefined ||
       currency !== undefined ||
       exchangeRateToBase !== undefined
-        ? { settlementAmount: nextSettlementAmount }
+        ? { settlementAmount: nextAmount }
         : {}),
     })
     .where(eq(expense.id, expenseId))
