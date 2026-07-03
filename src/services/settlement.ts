@@ -49,7 +49,7 @@ export const getSettlement = async (db: AppDb, tripId: string, userId: string) =
           (balances[split.membershipId] ?? 0) - split.amount;
       }
 
-      unallocated += currentExpense.amount - splitsTotal;
+      unallocated += currentExpense.settlementAmount - splitsTotal;
     }
   } else {
     const contributions = await db
@@ -66,7 +66,7 @@ export const getSettlement = async (db: AppDb, tripId: string, userId: string) =
       .where(eq(tripMembership.tripId, tripId));
 
     const totalExpense = expenses.reduce(
-      (sum, expense) => sum + expense.amount,
+      (sum, expense) => sum + expense.settlementAmount,
       0,
     );
 
@@ -81,7 +81,7 @@ export const getSettlement = async (db: AppDb, tripId: string, userId: string) =
 
     for (const contribution of contributions) {
       balances[contribution.membershipId] =
-        (balances[contribution.membershipId] ?? 0) + contribution.amount;
+        (balances[contribution.membershipId] ?? 0) + contribution.settlementAmount;
     }
   }
 
@@ -121,5 +121,5 @@ export const getSettlement = async (db: AppDb, tripId: string, userId: string) =
     if (creditors[creditorIndex].amount === 0) creditorIndex++;
   }
 
-  return { tripId, mode: currentTrip.mode, transfers, unallocated };
+  return { tripId, mode: currentTrip.mode, currency: currentTrip.currency, transfers, unallocated };
 };

@@ -15,7 +15,7 @@ export const create = async (c: AppContext) => {
 
   try {
     const { tripId } = parseWithSchema(tripIdParamsSchema, c.req.param());
-    const { membershipId, amount, date } = parseWithSchema(
+    const { membershipId, amount, currency, exchangeRateToBase, date } = parseWithSchema(
       createContributionBodySchema,
       await getJsonBody(c),
     );
@@ -25,6 +25,8 @@ export const create = async (c: AppContext) => {
       tripId,
       membershipId,
       amount,
+      currency,
+      exchangeRateToBase,
       date: new Date(date),
       userId: user.id,
     });

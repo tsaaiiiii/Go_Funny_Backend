@@ -3,6 +3,7 @@ import {
   index,
   integer,
   sqliteTable,
+  real,
   text,
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
@@ -89,6 +90,7 @@ export const trip = sqliteTable("trip", {
   id: text("id").primaryKey(),
   title: text("title").notNull(),
   location: text("location"),
+  currency: text("currency").notNull().default("TWD"),
   startDate: integer("start_date", { mode: "timestamp_ms" }).notNull(),
   endDate: integer("end_date", { mode: "timestamp_ms" }).notNull(),
   mode: text("mode", { enum: ["expense", "pool"] }).notNull(),
@@ -128,6 +130,9 @@ export const expense = sqliteTable(
       .references(() => trip.id, { onDelete: "cascade" }),
     title: text("title").notNull(),
     amount: integer("amount").notNull(),
+    currency: text("currency").notNull().default("TWD"),
+    exchangeRateToBase: real("exchange_rate_to_base").notNull().default(1),
+    settlementAmount: integer("settlement_amount").notNull().default(0),
     date: integer("date", { mode: "timestamp_ms" }).notNull(),
     splitType: text("split_type", {
       enum: ["equal_all", "equal_selected", "custom"],
@@ -174,6 +179,9 @@ export const contribution = sqliteTable(
       .notNull()
       .references(() => tripMembership.id),
     amount: integer("amount").notNull(),
+    currency: text("currency").notNull().default("TWD"),
+    exchangeRateToBase: real("exchange_rate_to_base").notNull().default(1),
+    settlementAmount: integer("settlement_amount").notNull().default(0),
     date: integer("date", { mode: "timestamp_ms" }).notNull(),
     createdAt: createdAt(),
   },

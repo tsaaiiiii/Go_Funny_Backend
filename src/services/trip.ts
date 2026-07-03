@@ -3,6 +3,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { contribution, expense, expenseSplit, trip, tripMembership, user } from "@/db/schema";
 import { newId, type AppDb } from "@/db/client";
 import { HttpError } from "@/lib/http-error";
+import { normalizeCurrencyCode } from "@/lib/currency";
 import { ensureTripAccess } from "@/services/access";
 
 export const createTrip = async (data: {
@@ -12,12 +13,14 @@ export const createTrip = async (data: {
   startDate: Date;
   endDate: Date;
   location?: string;
+  currency?: string;
   userId: string;
 }) => {
   const { db, userId, ...tripData } = data;
   const nowTrip = {
     id: newId(),
     ...tripData,
+    currency: normalizeCurrencyCode(tripData.currency),
     createdByUserId: userId,
   };
 
@@ -114,12 +117,17 @@ export const editTrip = async (
     startDate?: Date;
     endDate?: Date;
     location?: string;
+    currency?: string;
   },
 ) => {
   await ensureTripAccess(db, id, userId);
+  const updateData = {
+    ...data,
+    ...(data.currency ? { currency: normalizeCurrencyCode(data.currency) } : {}),
+  };
   const [updatedTrip] = await db
     .update(trip)
-    .set(data)
+    .set(updateData)
     .where(eq(trip.id, id))
     .returning();
   return updatedTrip;

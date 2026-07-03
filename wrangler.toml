@@ -1,5 +1,6 @@
 name = "go-funny-backend"
 main = "src/worker.ts"
+account_id = "b24de3d8331dbea356b826a9252a6cec"
 compatibility_date = "2026-06-27"
 compatibility_flags = ["nodejs_compat"]
 minify = true

@@ -1,7 +1,9 @@
 import { eq } from "drizzle-orm";
 
-import { contribution } from "@/db/schema";
+import { contribution, trip } from "@/db/schema";
 import { newId, type AppDb } from "@/db/client";
+import { HttpError } from "@/lib/http-error";
+import { normalizeCurrencyCode, resolveSettlementAmount } from "@/lib/currency";
 import {
   ensureMembershipBelongsToTrip,
   ensureTripAccess,
@@ -12,21 +14,50 @@ export const createContribution = async (data: {
   tripId: string;
   membershipId: string;
   amount: number;
+  currency?: string;
+  exchangeRateToBase?: number;
   date: Date;
   userId: string;
 }) => {
-  const { db, userId, ...contributionData } = data;
+  const { db, userId, currency, exchangeRateToBase, ...contributionData } = data;
 
   await ensureTripAccess(db, contributionData.tripId, userId);
+  const currentTrip = await db.query.trip.findFirst({
+    columns: { currency: true },
+    where: eq(trip.id, contributionData.tripId),
+  });
+
+  if (!currentTrip) {
+    throw new HttpError(404, "旅程不存在");
+  }
   await ensureMembershipBelongsToTrip(
     db,
     contributionData.membershipId,
     contributionData.tripId,
   );
 
+  const normalizedCurrency = normalizeCurrencyCode(currency ?? currentTrip.currency);
+  const settlementRate = exchangeRateToBase ?? 1;
+
+  if (
+    normalizedCurrency !== currentTrip.currency &&
+    exchangeRateToBase === undefined
+  ) {
+    throw new HttpError(400, "外幣記錄請提供匯率");
+  }
+
   const [createdContribution] = await db
     .insert(contribution)
-    .values({ id: newId(), ...contributionData })
+    .values({
+      id: newId(),
+      ...contributionData,
+      currency: normalizedCurrency,
+      exchangeRateToBase: settlementRate,
+      settlementAmount: resolveSettlementAmount(
+        contributionData.amount,
+        settlementRate,
+      ),
+    })
     .returning();
   return createdContribution;
 };

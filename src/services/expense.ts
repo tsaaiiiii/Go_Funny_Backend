@@ -1,8 +1,9 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
 
-import { expense, expenseSplit, tripMembership } from "@/db/schema";
+import { expense, expenseSplit, trip, tripMembership } from "@/db/schema";
 import { newId, type AppDb } from "@/db/client";
 import { HttpError } from "@/lib/http-error";
+import { normalizeCurrencyCode, resolveSettlementAmount } from "@/lib/currency";
 import {
   ensureMembershipBelongsToTrip,
   ensureTripAccess,
@@ -122,6 +123,8 @@ export const createExpense = async (data: {
   tripId: string;
   title: string;
   amount: number;
+  currency?: string;
+  exchangeRateToBase?: number;
   date: Date;
   splitType: SplitType;
   payerMembershipId?: string;
@@ -129,9 +132,17 @@ export const createExpense = async (data: {
   splits?: ExpenseSplitInput[];
   userId: string;
 }) => {
-  const { db, userId, splits, ...expenseData } = data;
+  const { db, userId, splits, currency, exchangeRateToBase, ...expenseData } = data;
 
   await ensureTripAccess(db, expenseData.tripId, userId);
+  const currentTrip = await db.query.trip.findFirst({
+    columns: { currency: true },
+    where: eq(trip.id, expenseData.tripId),
+  });
+
+  if (!currentTrip) {
+    throw new HttpError(404, "旅程不存在");
+  }
 
   if (expenseData.payerMembershipId) {
     await ensureMembershipBelongsToTrip(
@@ -141,15 +152,33 @@ export const createExpense = async (data: {
     );
   }
 
+  const normalizedCurrency = normalizeCurrencyCode(currency ?? currentTrip.currency);
+  const settlementRate = exchangeRateToBase ?? 1;
+
+  if (normalizedCurrency !== currentTrip.currency && exchangeRateToBase === undefined) {
+    throw new HttpError(400, "外幣記錄請提供匯率");
+  }
+
+  const settlementAmount = resolveSettlementAmount(
+    expenseData.amount,
+    settlementRate,
+  );
+
   const expenseSplits = await buildExpenseSplits({
     db,
     tripId: expenseData.tripId,
-    amount: expenseData.amount,
+    amount: settlementAmount,
     splitType: expenseData.splitType,
     splits,
   });
 
-  const newExpense = { id: newId(), ...expenseData };
+  const newExpense = {
+    id: newId(),
+    ...expenseData,
+    currency: normalizedCurrency,
+    exchangeRateToBase: settlementRate,
+    settlementAmount,
+  };
   await db.insert(expense).values(newExpense);
 
   const createdSplits = expenseSplits.map((split) => ({
@@ -194,6 +223,8 @@ export const updateExpense = async (
   data: {
     title?: string;
     amount?: number;
+    currency?: string;
+    exchangeRateToBase?: number;
     date?: Date;
     splitType?: SplitType;
     payerMembershipId?: string | null;
@@ -203,11 +234,16 @@ export const updateExpense = async (
 ) => {
   await ensureTripAccess(db, tripId, userId);
 
+  const currentTrip = await db.query.trip.findFirst({
+    columns: { currency: true },
+    where: eq(trip.id, tripId),
+  });
+
   const currentExpense = await db.query.expense.findFirst({
     where: and(eq(expense.id, expenseId), eq(expense.tripId, tripId)),
   });
 
-  if (!currentExpense) {
+  if (!currentTrip || !currentExpense) {
     throw new HttpError(404, "費用不存在");
   }
 
@@ -215,19 +251,40 @@ export const updateExpense = async (
     await ensureMembershipBelongsToTrip(db, data.payerMembershipId, tripId);
   }
 
-  const { splits, ...expenseData } = data;
+  const { splits, currency, exchangeRateToBase, ...expenseData } = data;
   const nextAmount = expenseData.amount ?? currentExpense.amount;
+  const nextCurrency = normalizeCurrencyCode(
+    currency ?? currentExpense.currency ?? currentTrip.currency,
+  );
+  const nextExchangeRateToBase =
+    exchangeRateToBase ?? currentExpense.exchangeRateToBase ?? 1;
   const nextSplitType = expenseData.splitType ?? currentExpense.splitType;
   const shouldRebuildSplits =
     splits !== undefined ||
     expenseData.amount !== undefined ||
-    expenseData.splitType !== undefined;
+    expenseData.splitType !== undefined ||
+    currency !== undefined ||
+    exchangeRateToBase !== undefined;
+
+  if (
+    nextCurrency !== currentTrip.currency &&
+    currency !== undefined &&
+    exchangeRateToBase === undefined &&
+    currentExpense.currency === currentTrip.currency
+  ) {
+    throw new HttpError(400, "外幣記錄請提供匯率");
+  }
+
+  const nextSettlementAmount = resolveSettlementAmount(
+    nextAmount,
+    nextExchangeRateToBase,
+  );
 
   const expenseSplits = shouldRebuildSplits
     ? await buildExpenseSplits({
         db,
         tripId,
-        amount: nextAmount,
+        amount: nextSettlementAmount,
         splitType: nextSplitType,
         splits,
       })
@@ -239,7 +296,18 @@ export const updateExpense = async (
 
   const [updatedExpense] = await db
     .update(expense)
-    .set(expenseData)
+    .set({
+      ...expenseData,
+      ...(currency !== undefined ? { currency: nextCurrency } : {}),
+      ...(exchangeRateToBase !== undefined
+        ? { exchangeRateToBase: nextExchangeRateToBase }
+        : {}),
+      ...(expenseData.amount !== undefined ||
+      currency !== undefined ||
+      exchangeRateToBase !== undefined
+        ? { settlementAmount: nextSettlementAmount }
+        : {}),
+    })
     .where(eq(expense.id, expenseId))
     .returning();
 

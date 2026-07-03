@@ -13,6 +13,13 @@ const dateTimeSchema = z.string().openapi({
 const idSchema = (example: string) =>
   z.string().min(1).openapi({ example });
 
+const currencySchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(10)
+  .openapi({ example: "TWD" });
+
 export const tripModeSchema = z
   .enum(["expense", "pool"])
   .openapi("TripMode");
@@ -72,6 +79,7 @@ export const tripSchema = z
     id: idSchema("cm123trip"),
     title: z.string().openapi({ example: "東京五日遊" }),
     location: z.string().nullable().openapi({ example: "東京" }),
+    currency: currencySchema,
     startDate: dateTimeSchema,
     endDate: dateTimeSchema,
     mode: tripModeSchema,
@@ -118,6 +126,9 @@ export const expenseSchema = z
     tripId: idSchema("cm123trip"),
     title: z.string().openapi({ example: "午餐" }),
     amount: z.number().int().openapi({ example: 1200 }),
+    currency: currencySchema,
+    exchangeRateToBase: z.number().positive().openapi({ example: 32 }),
+    settlementAmount: z.number().int().openapi({ example: 38400 }),
     date: dateTimeSchema,
     splitType: splitTypeSchema,
     payerMembershipId: idSchema("cm123membership").nullable(),
@@ -138,6 +149,9 @@ export const contributionSchema = z
     tripId: idSchema("cm123trip"),
     membershipId: idSchema("cm123membership"),
     amount: z.number().int().openapi({ example: 500 }),
+    currency: currencySchema,
+    exchangeRateToBase: z.number().positive().openapi({ example: 32 }),
+    settlementAmount: z.number().int().openapi({ example: 16000 }),
     date: dateTimeSchema,
     createdAt: dateTimeSchema,
   })
@@ -185,6 +199,7 @@ export const settlementSchema = z
   .object({
     tripId: idSchema("cm123trip"),
     mode: tripModeSchema,
+    currency: currencySchema,
     transfers: z.array(settlementTransferSchema),
     unallocated: z.number().int().min(0).openapi({ example: 3 }),
   })
@@ -195,6 +210,7 @@ export const createTripBodySchema = z
     title: z.string().min(1).openapi({ example: "東京五日遊" }),
     mode: tripModeSchema,
     location: z.string().min(1).optional().openapi({ example: "東京" }),
+    currency: currencySchema.optional().openapi({ example: "JPY" }),
     startDate: dateSchema,
     endDate: dateSchema,
   })
@@ -205,6 +221,7 @@ export const updateTripBodySchema = z
     title: z.string().min(1).optional().openapi({ example: "東京五日遊" }),
     mode: tripModeSchema.optional(),
     location: z.string().min(1).optional().openapi({ example: "東京" }),
+    currency: currencySchema.optional().openapi({ example: "JPY" }),
     startDate: dateSchema.optional(),
     endDate: dateSchema.optional(),
   })
@@ -214,6 +231,8 @@ export const createExpenseBodySchema = z
   .strictObject({
     title: z.string().min(1).openapi({ example: "午餐" }),
     amount: z.number().int().min(0).openapi({ example: 1200 }),
+    currency: currencySchema.optional().openapi({ example: "JPY" }),
+    exchangeRateToBase: z.number().positive().optional().openapi({ example: 0.21 }),
     date: dateSchema,
     splitType: splitTypeSchema,
     payerMembershipId: idSchema("cm123membership").optional(),
@@ -226,6 +245,8 @@ export const updateExpenseBodySchema = z
   .strictObject({
     title: z.string().min(1).optional().openapi({ example: "午餐" }),
     amount: z.number().int().min(0).optional().openapi({ example: 1200 }),
+    currency: currencySchema.optional().openapi({ example: "JPY" }),
+    exchangeRateToBase: z.number().positive().optional().openapi({ example: 0.21 }),
     date: dateSchema.optional(),
     splitType: splitTypeSchema.optional(),
     payerMembershipId: idSchema("cm123membership").nullable().optional(),
@@ -238,6 +259,8 @@ export const createContributionBodySchema = z
   .strictObject({
     membershipId: idSchema("cm123membership"),
     amount: z.number().int().openapi({ example: 500 }),
+    currency: currencySchema.optional().openapi({ example: "JPY" }),
+    exchangeRateToBase: z.number().positive().optional().openapi({ example: 0.21 }),
     date: dateSchema,
   })
   .openapi("CreateContributionRequest");

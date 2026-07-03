@@ -19,14 +19,25 @@ export const create = async (c: AppContext) => {
 
   try {
     const { tripId } = parseWithSchema(tripIdParamsSchema, c.req.param());
-    const { title, amount, date, splitType, payerMembershipId, note, splits } =
-      parseWithSchema(createExpenseBodySchema, await getJsonBody(c));
+    const {
+      title,
+      amount,
+      currency,
+      exchangeRateToBase,
+      date,
+      splitType,
+      payerMembershipId,
+      note,
+      splits,
+    } = parseWithSchema(createExpenseBodySchema, await getJsonBody(c));
 
     const expense = await createExpense({
       db: c.var.db,
       tripId,
       title,
       amount,
+      currency,
+      exchangeRateToBase,
       date: new Date(date),
       splitType,
       payerMembershipId,
@@ -60,12 +71,23 @@ export const edit = async (c: AppContext) => {
       tripIdExpenseIdParamsSchema,
       c.req.param(),
     );
-    const { title, amount, date, splitType, payerMembershipId, note, splits } =
-      parseWithSchema(updateExpenseBodySchema, await getJsonBody(c));
+    const {
+      title,
+      amount,
+      currency,
+      exchangeRateToBase,
+      date,
+      splitType,
+      payerMembershipId,
+      note,
+      splits,
+    } = parseWithSchema(updateExpenseBodySchema, await getJsonBody(c));
 
     const expense = await updateExpense(c.var.db, expenseId, tripId, user.id, {
       title,
       amount,
+      currency,
+      exchangeRateToBase,
       date: date ? new Date(date) : undefined,
       splitType,
       payerMembershipId,
