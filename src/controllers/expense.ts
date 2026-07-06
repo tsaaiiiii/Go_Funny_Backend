@@ -22,6 +22,7 @@ export const create = async (c: AppContext) => {
     const {
       title,
       amount,
+      recordType,
       currency,
       exchangeRateToBase,
       date,
@@ -36,6 +37,7 @@ export const create = async (c: AppContext) => {
       tripId,
       title,
       amount,
+      recordType,
       currency,
       exchangeRateToBase,
       date: new Date(date),
@@ -74,6 +76,7 @@ export const edit = async (c: AppContext) => {
     const {
       title,
       amount,
+      recordType,
       currency,
       exchangeRateToBase,
       date,
@@ -86,6 +89,7 @@ export const edit = async (c: AppContext) => {
     const expense = await updateExpense(c.var.db, expenseId, tripId, user.id, {
       title,
       amount,
+      recordType,
       currency,
       exchangeRateToBase,
       date: date ? new Date(date) : undefined,

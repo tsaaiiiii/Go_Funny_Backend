@@ -10,6 +10,7 @@ import {
 } from "@/services/access";
 
 type SplitType = "equal_all" | "equal_selected" | "custom";
+type ExpenseRecordType = "general" | "pool";
 
 type ExpenseSplitInput = {
   membershipId: string;
@@ -118,11 +119,19 @@ const buildExpenseSplits = async (data: {
   return splits;
 };
 
+const normalizeRecordType = (
+  recordType: string | undefined,
+  fallback: ExpenseRecordType,
+): ExpenseRecordType => {
+  return recordType === "pool" ? "pool" : fallback === "pool" ? "pool" : "general";
+};
+
 export const createExpense = async (data: {
   db: AppDb;
   tripId: string;
   title: string;
   amount: number;
+  recordType?: string;
   currency?: string;
   exchangeRateToBase?: number;
   date: Date;
@@ -132,15 +141,29 @@ export const createExpense = async (data: {
   splits?: ExpenseSplitInput[];
   userId: string;
 }) => {
-  const { db, userId, splits, currency, exchangeRateToBase, ...expenseData } = data;
+  const { db, userId, splits, recordType, currency, exchangeRateToBase, ...expenseData } = data;
 
   await ensureTripAccess(db, expenseData.tripId, userId);
   const currentTrip = await db.query.trip.findFirst({
+    columns: { currency: true, mode: true },
     where: eq(trip.id, expenseData.tripId),
   });
 
   if (!currentTrip) {
     throw new HttpError(404, "旅程不存在");
+  }
+
+  const nextRecordType = normalizeRecordType(
+    recordType,
+    currentTrip.mode === "pool" ? "pool" : "general",
+  );
+
+  if (nextRecordType === "general" && !expenseData.payerMembershipId) {
+    throw new HttpError(400, "一般支出請指定付款人");
+  }
+
+  if (nextRecordType === "pool" && expenseData.payerMembershipId) {
+    throw new HttpError(400, "共同池支出不需要付款人");
   }
 
   if (expenseData.payerMembershipId) {
@@ -153,17 +176,21 @@ export const createExpense = async (data: {
 
   const normalizedCurrency = normalizeCurrencyCode(currency ?? currentTrip.currency);
 
-  const expenseSplits = await buildExpenseSplits({
-    db,
-    tripId: expenseData.tripId,
-    amount: expenseData.amount,
-    splitType: expenseData.splitType,
-    splits,
-  });
+  const expenseSplits =
+    nextRecordType === "general"
+      ? await buildExpenseSplits({
+          db,
+          tripId: expenseData.tripId,
+          amount: expenseData.amount,
+          splitType: expenseData.splitType,
+          splits,
+        })
+      : [];
 
   const newExpense = {
     id: newId(),
     ...expenseData,
+    recordType: nextRecordType,
     currency: normalizedCurrency,
     exchangeRateToBase: exchangeRateToBase ?? 1,
     settlementAmount: expenseData.amount,
@@ -212,6 +239,7 @@ export const updateExpense = async (
   data: {
     title?: string;
     amount?: number;
+    recordType?: string;
     currency?: string;
     exchangeRateToBase?: number;
     date?: Date;
@@ -239,32 +267,50 @@ export const updateExpense = async (
     await ensureMembershipBelongsToTrip(db, data.payerMembershipId, tripId);
   }
 
-  const { splits, currency, exchangeRateToBase, ...expenseData } = data;
+  const { splits, recordType, currency, exchangeRateToBase, ...expenseData } = data;
   const nextAmount = expenseData.amount ?? currentExpense.amount;
   const nextCurrency = normalizeCurrencyCode(
     currency ?? currentExpense.currency ?? currentTrip.currency,
   );
+  const nextRecordType = normalizeRecordType(
+    recordType ?? currentExpense.recordType,
+    currentTrip.mode === "pool" ? "pool" : "general",
+  );
   const nextExchangeRateToBase =
     exchangeRateToBase ?? currentExpense.exchangeRateToBase ?? 1;
   const nextSplitType = expenseData.splitType ?? currentExpense.splitType;
+  const nextPayerMembershipId =
+    nextRecordType === "pool"
+      ? null
+      : expenseData.payerMembershipId ?? currentExpense.payerMembershipId;
   const shouldRebuildSplits =
     splits !== undefined ||
     expenseData.amount !== undefined ||
     expenseData.splitType !== undefined ||
+    recordType !== undefined ||
     currency !== undefined ||
     exchangeRateToBase !== undefined;
 
-  const expenseSplits = shouldRebuildSplits
-    ? await buildExpenseSplits({
-        db,
-        tripId,
-        amount: nextAmount,
-        splitType: nextSplitType,
-        splits,
-      })
-    : undefined;
+  if (nextRecordType === "general" && !nextPayerMembershipId) {
+    throw new HttpError(400, "一般支出請指定付款人");
+  }
 
-  if (expenseSplits) {
+  if (nextRecordType === "pool" && expenseData.payerMembershipId !== undefined && expenseData.payerMembershipId !== null) {
+    throw new HttpError(400, "共同池支出不需要付款人");
+  }
+
+  const expenseSplits =
+    nextRecordType === "general" && shouldRebuildSplits
+      ? await buildExpenseSplits({
+          db,
+          tripId,
+          amount: nextAmount,
+          splitType: nextSplitType,
+          splits,
+        })
+      : [];
+
+  if (expenseSplits.length > 0 || nextRecordType === "pool") {
     await db.delete(expenseSplit).where(eq(expenseSplit.expenseId, expenseId));
   }
 
@@ -272,6 +318,8 @@ export const updateExpense = async (
     .update(expense)
     .set({
       ...expenseData,
+      payerMembershipId: nextPayerMembershipId,
+      ...(recordType !== undefined ? { recordType: nextRecordType } : {}),
       ...(currency !== undefined ? { currency: nextCurrency } : {}),
       ...(exchangeRateToBase !== undefined
         ? { exchangeRateToBase: nextExchangeRateToBase }
@@ -285,7 +333,7 @@ export const updateExpense = async (
     .where(eq(expense.id, expenseId))
     .returning();
 
-  if (expenseSplits) {
+  if (expenseSplits.length > 0) {
     const createdSplits = expenseSplits.map((split) => ({
       id: newId(),
       expenseId,
@@ -297,10 +345,12 @@ export const updateExpense = async (
     return { ...updatedExpense, splits: createdSplits };
   }
 
-  const existingSplits = await db
-    .select()
-    .from(expenseSplit)
-    .where(eq(expenseSplit.expenseId, expenseId));
+  const existingSplits = nextRecordType === "general"
+    ? await db
+        .select()
+        .from(expenseSplit)
+        .where(eq(expenseSplit.expenseId, expenseId))
+    : [];
   return { ...updatedExpense, splits: existingSplits };
 };
 

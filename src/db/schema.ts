@@ -130,6 +130,9 @@ export const expense = sqliteTable(
       .references(() => trip.id, { onDelete: "cascade" }),
     title: text("title").notNull(),
     amount: integer("amount").notNull(),
+    recordType: text("record_type", { enum: ["general", "pool"] })
+      .notNull()
+      .default("general"),
     currency: text("currency").notNull().default("TWD"),
     exchangeRateToBase: real("exchange_rate_to_base").notNull().default(1),
     settlementAmount: integer("settlement_amount").notNull().default(0),

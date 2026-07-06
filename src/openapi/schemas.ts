@@ -24,6 +24,10 @@ export const tripModeSchema = z
   .enum(["expense", "pool"])
   .openapi("TripMode");
 
+export const expenseRecordTypeSchema = z
+  .enum(["general", "pool"])
+  .openapi("ExpenseRecordType");
+
 export const splitTypeSchema = z
   .enum(["equal_all", "equal_selected", "custom"])
   .openapi("SplitType");
@@ -126,6 +130,7 @@ export const expenseSchema = z
     tripId: idSchema("cm123trip"),
     title: z.string().openapi({ example: "午餐" }),
     amount: z.number().int().openapi({ example: 1200 }),
+    recordType: expenseRecordTypeSchema,
     currency: currencySchema,
     exchangeRateToBase: z.number().positive().openapi({ example: 32 }),
     settlementAmount: z.number().int().openapi({ example: 38400 }),
@@ -195,11 +200,27 @@ export const settlementTransferSchema = z
   })
   .openapi("SettlementTransfer");
 
+export const settlementGeneralSchema = z
+  .object({
+    transfers: z.array(settlementTransferSchema),
+    unallocated: z.number().int().min(0).openapi({ example: 3 }),
+    totalExpense: z.number().int().min(0).openapi({ example: 2400 }),
+  })
+  .openapi("SettlementGeneral");
+
+export const settlementPoolSchema = z
+  .object({
+    deposited: z.number().int().min(0).openapi({ example: 5000 }),
+    spent: z.number().int().min(0).openapi({ example: 3200 }),
+    balance: z.number().int().openapi({ example: 1800 }),
+  })
+  .openapi("SettlementPool");
+
 export const settlementCurrencyGroupSchema = z
   .object({
     currency: currencySchema,
-    transfers: z.array(settlementTransferSchema),
-    unallocated: z.number().int().min(0).openapi({ example: 3 }),
+    general: settlementGeneralSchema,
+    pool: settlementPoolSchema,
   })
   .openapi("SettlementCurrencyGroup");
 
@@ -237,6 +258,7 @@ export const createExpenseBodySchema = z
   .strictObject({
     title: z.string().min(1).openapi({ example: "午餐" }),
     amount: z.number().int().min(0).openapi({ example: 1200 }),
+    recordType: expenseRecordTypeSchema.optional().openapi({ example: "general" }),
     currency: currencySchema.optional().openapi({ example: "JPY" }),
     exchangeRateToBase: z.number().positive().optional().openapi({ example: 0.21 }),
     date: dateSchema,
@@ -251,6 +273,7 @@ export const updateExpenseBodySchema = z
   .strictObject({
     title: z.string().min(1).optional().openapi({ example: "午餐" }),
     amount: z.number().int().min(0).optional().openapi({ example: 1200 }),
+    recordType: expenseRecordTypeSchema.optional().openapi({ example: "general" }),
     currency: currencySchema.optional().openapi({ example: "JPY" }),
     exchangeRateToBase: z.number().positive().optional().openapi({ example: 0.21 }),
     date: dateSchema.optional(),
